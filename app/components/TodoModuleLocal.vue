@@ -29,19 +29,24 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{ snap?: boolean }>()
+const props = defineProps<{ snap?: boolean; uid: string }>()
 
 // Snap grid config (invisible): 2 columns x 3 rows style
-const GRID = { colWidth: 360, rowHeight: 240, gutterX: 16, gutterY: 16 }
+import { useSnapGridStore, GRID } from '~~/stores/snapGrid'
+const gridStore = useSnapGridStore()
 function roundToStep(v: number, step: number) { return Math.round(v / step) * step }
 function applySnap() {
+  console.log(`[TODO] applySnap called for ${props.uid}, snap=${props.snap}`)
   if (!props.snap) return
   size.w = GRID.colWidth
   size.h = GRID.rowHeight
-  const stepX = GRID.colWidth + GRID.gutterX
-  const stepY = GRID.rowHeight + GRID.gutterY
-  position.x = roundToStep(position.x, stepX)
-  position.y = roundToStep(position.y, stepY)
+  const desired = gridStore.colRowFromPx(position.x, position.y)
+  console.log(`[TODO] Current position: (${position.x}, ${position.y}) -> desired cell: (${desired.col}, ${desired.row})`)
+  const cell = gridStore.requestSnap(props.uid, desired)
+  const px = gridStore.pxFromColRow(cell.col, cell.row)
+  console.log(`[TODO] Final position: (${px.x}, ${px.y})`)
+  position.x = px.x
+  position.y = px.y
 }
 const title = ref('Todo List')
 const items = ref<{ content:string; done:boolean }[]>([])
@@ -50,7 +55,7 @@ const interactive = ref(true)
 
 // drag + resize state
 const position = reactive({ x: 0, y: 0 })
-const size = reactive({ w: 320, h: 260 })
+const size = reactive({ w: GRID.colWidth, h: GRID.rowHeight })
 const dragState = reactive({ dragging: false, startX: 0, startY: 0, originX: 0, originY: 0 })
 const resizeState = reactive({ resizing: false, startX: 0, startY: 0, originW: 0, originH: 0 })
 
@@ -58,18 +63,22 @@ const wrapperStyle = computed(() => ({
   width: size.w + 'px',
   height: size.h + 'px',
   transform: `translate(${position.x}px, ${position.y}px)`,
-  position: 'relative'
+  position: 'relative',
+  boxSizing: 'border-box'
 }))
 
 const wrapperClass = computed(() => [
-  'border rounded-2xl p-4 space-y-3 shadow bg-white overflow-hidden',
-  dragState.dragging ? 'select-none cursor-grabbing' : 'select-text cursor-default'
+  'border rounded-2xl p-2 space-y-2 shadow bg-white overflow-hidden',
+  dragState.dragging ? 'select-none cursor-grabbing z-50' : 'select-text cursor-default'
 ])
 
 function onMouseMove(e: MouseEvent) {
   if (dragState.dragging) {
-    position.x = dragState.originX + (e.clientX - dragState.startX)
-    position.y = dragState.originY + (e.clientY - dragState.startY)
+    const newX = dragState.originX + (e.clientX - dragState.startX)
+    const newY = dragState.originY + (e.clientY - dragState.startY)
+    console.log(`[TODO] onMouseMove: dragging, updating position from (${position.x}, ${position.y}) to (${newX}, ${newY})`)
+    position.x = newX
+    position.y = newY
   } else if (resizeState.resizing) {
     const nextW = Math.max(260, resizeState.originW + (e.clientX - resizeState.startX))
     const nextH = Math.max(200, resizeState.originH + (e.clientY - resizeState.startY))
@@ -78,13 +87,17 @@ function onMouseMove(e: MouseEvent) {
   }
 }
 function onMouseUp() {
+  console.log(`[TODO] onMouseUp called, snap=${props.snap}`)
   dragState.dragging = false
   resizeState.resizing = false
   interactive.value = true
-  applySnap()
   if (pressTimerId.value !== null) {
     clearTimeout(pressTimerId.value)
     pressTimerId.value = null
+  }
+  if (props.snap) {
+    console.log(`[TODO] Calling applySnap from onMouseUp`)
+    applySnap()
   }
 }
 
@@ -108,6 +121,7 @@ const DRAG_HOLD_MS = 200
 const pressTimerId = ref<number | null>(null)
 
 function onWrapperMouseDown(e: MouseEvent) {
+  console.log(`[TODO] onWrapperMouseDown called`)
   if (e.button !== 0) return
   // prepare potential drag; only start after hold
   dragState.startX = e.clientX
@@ -115,6 +129,7 @@ function onWrapperMouseDown(e: MouseEvent) {
   dragState.originX = position.x
   dragState.originY = position.y
   pressTimerId.value = window.setTimeout(() => {
+    console.log(`[TODO] Starting drag after ${DRAG_HOLD_MS}ms`)
     dragState.dragging = true
     interactive.value = false
   }, DRAG_HOLD_MS)
@@ -123,11 +138,23 @@ function onWrapperMouseDown(e: MouseEvent) {
 onMounted(() => {
   window.addEventListener('mousemove', onMouseMove)
   window.addEventListener('mouseup', onMouseUp)
+  if (props.snap) applySnap()
 })
 watch(() => props.snap, () => applySnap())
+
+watch(() => gridStore.cells[props.uid], (cell) => {
+  if (!props.snap || !cell) return
+  if (dragState.dragging || resizeState.resizing) return
+  size.w = GRID.colWidth
+  size.h = GRID.rowHeight
+  const px = gridStore.pxFromColRow(cell.col, cell.row)
+  position.x = px.x
+  position.y = px.y
+})
 onBeforeUnmount(() => {
   window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('mouseup', onMouseUp)
+  gridStore.release(props.uid)
 })
 
 function addItem() {

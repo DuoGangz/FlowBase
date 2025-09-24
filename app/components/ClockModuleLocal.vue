@@ -36,15 +36,19 @@
 
 <script setup lang="ts">
 import { useUserStore } from '~~/stores/user'
-const props = defineProps<{ snap?: boolean }>()
-const GRID = { colWidth: 360, rowHeight: 240, gutterX: 16, gutterY: 16 }
+import { useSnapGridStore, GRID } from '~~/stores/snapGrid'
+const props = defineProps<{ snap?: boolean; uid: string }>()
+const gridStore = useSnapGridStore()
 function roundToStep(v: number, s: number) { return Math.round(v / s) * s }
 function applySnap() {
   if (!props.snap) return
   size.w = GRID.colWidth
   size.h = GRID.rowHeight
-  position.x = roundToStep(position.x, GRID.colWidth + GRID.gutterX)
-  position.y = roundToStep(position.y, GRID.rowHeight + GRID.gutterY)
+  const desired = gridStore.colRowFromPx(position.x, position.y)
+  const cell = gridStore.requestSnap(props.uid, desired)
+  const px = gridStore.pxFromColRow(cell.col, cell.row)
+  position.x = px.x
+  position.y = px.y
 }
 
 type Entry = {
@@ -91,7 +95,7 @@ onMounted(() => {
 // Drag/Resize behavior similar to other local modules
 const interactive = ref(true)
 const position = reactive({ x: 0, y: 0 })
-const size = reactive({ w: 320, h: 220 })
+const size = reactive({ w: GRID.colWidth, h: GRID.rowHeight })
 const dragState = reactive({ dragging: false, startX: 0, startY: 0, originX: 0, originY: 0 })
 const resizeState = reactive({ resizing: false, startX: 0, startY: 0, originW: 0, originH: 0 })
 
@@ -99,11 +103,12 @@ const wrapperStyle = computed(() => ({
   width: size.w + 'px',
   height: size.h + 'px',
   transform: `translate(${position.x}px, ${position.y}px)`,
-  position: 'relative'
+  position: 'relative',
+  boxSizing: 'border-box'
 }))
 const wrapperClass = computed(() => [
-  'border rounded-2xl p-4 space-y-3 shadow bg-white overflow-hidden',
-  dragState.dragging ? 'select-none cursor-grabbing' : 'select-text cursor-default'
+  'border rounded-2xl p-2 space-y-2 shadow bg-white overflow-hidden',
+  dragState.dragging ? 'select-none cursor-grabbing z-50' : 'select-text cursor-default'
 ])
 
 function onMouseMove(e: MouseEvent) {
@@ -159,11 +164,23 @@ function onWrapperMouseDown(e: MouseEvent) {
 onMounted(() => {
   window.addEventListener('mousemove', onMouseMove)
   window.addEventListener('mouseup', onMouseUp)
+  if (props.snap) applySnap()
 })
 watch(() => props.snap, () => applySnap())
+
+watch(() => gridStore.cells[props.uid], (cell) => {
+  if (!props.snap || !cell) return
+  if (dragState.dragging || resizeState.resizing) return
+  size.w = GRID.colWidth
+  size.h = GRID.rowHeight
+  const px = gridStore.pxFromColRow(cell.col, cell.row)
+  position.x = px.x
+  position.y = px.y
+})
 onBeforeUnmount(() => {
   window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('mouseup', onMouseUp)
+  gridStore.release(props.uid)
 })
 </script>
 
