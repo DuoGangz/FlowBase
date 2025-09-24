@@ -31,6 +31,7 @@
           <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('todo')">Todo</button>
           <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('calendar')">Calendar</button>
           <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('clock')">Time Clock</button>
+          <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('roadmap')">Road Map</button>
         </div>
       </div>
     </div>
@@ -39,7 +40,12 @@
       <component
         v-for="mod in modules"
         :key="mod.key"
-        :is="mod.type === 'todo' ? TodoModuleLocal : (mod.type === 'calendar' ? CalendarModuleLocal : ClockModuleLocal)"
+        :is="
+          mod.type === 'todo' ? TodoModuleLocal :
+          mod.type === 'calendar' ? CalendarModuleLocal :
+          mod.type === 'clock' ? ClockModuleLocal :
+          RoadmapModuleLocal
+        "
         @remove="removeModule(mod.key)"
       />
     </div>
@@ -50,9 +56,10 @@
 import TodoModuleLocal from '~/components/TodoModuleLocal.vue'
 import CalendarModuleLocal from '~/components/CalendarModuleLocal.vue'
 import ClockModuleLocal from '~/components/ClockModuleLocal.vue'
+import RoadmapModuleLocal from '~/components/RoadmapModuleLocal.vue'
 import { useUserStore } from '~~/stores/user'
 
-const modules = ref<{ key: string; type: 'todo' | 'calendar' | 'clock' }[]>([])
+const modules = ref<{ key: string; type: 'todo' | 'calendar' | 'clock' | 'roadmap' }[]>([])
 const menuOpen = ref(false)
 
 const me = useUserStore()
@@ -97,7 +104,7 @@ function toggleMenu() {
   menuOpen.value = !menuOpen.value
 }
 
-function addModule(type: 'todo' | 'calendar' | 'clock') {
+function addModule(type: 'todo' | 'calendar' | 'clock' | 'roadmap') {
   modules.value.push({ key: Math.random().toString(36).slice(2), type })
   menuOpen.value = false
 }

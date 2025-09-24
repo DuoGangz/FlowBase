@@ -52,7 +52,7 @@ const wrapperStyle = computed(() => ({
   position: 'relative'
 }))
 const wrapperClass = computed(() => [
-  'border rounded-2xl p-4 space-y-3 shadow bg-white',
+  'border rounded-2xl p-4 space-y-3 shadow bg-white overflow-hidden',
   dragState.dragging ? 'select-none cursor-grabbing' : 'select-text cursor-default'
 ])
 

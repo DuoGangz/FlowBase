@@ -8,6 +8,7 @@
       <div class="flex gap-2">
         <button @click="activeTab='messages'" :class="tabClass('messages')">Messages</button>
         <button @click="activeTab='todos'" :class="tabClass('todos')">Todos</button>
+        <button @click="activeTab='roadmap'" :class="tabClass('roadmap')">Road Map</button>
         <button @click="activeTab='files'" :class="tabClass('files')">Files</button>
       </div>
     </div>
@@ -33,6 +34,11 @@
         </div>
       </div>
 
+      <div v-else-if="activeTab==='roadmap'" class="space-y-4">
+        <h2 class="text-xl font-semibold">Road Map</h2>
+        <RoadmapModule :project-id="project?.id || 0" />
+      </div>
+
       <div v-else class="space-y-2">
         <form class="flex gap-2" @submit.prevent="addFile">
           <input v-model="newFilePath" placeholder="Mock file path" class="border rounded px-3 py-2" />
@@ -49,9 +55,10 @@
 <script setup lang="ts">
 import MessageBoard from '~/components/MessageBoard.vue'
 import TodoModule from '~/components/TodoModule.vue'
+import RoadmapModule from '~/components/RoadmapModule.vue'
 
 const route = useRoute()
-const activeTab = ref<'messages' | 'todos' | 'files'>('messages')
+const activeTab = ref<'messages' | 'todos' | 'roadmap' | 'files'>('messages')
 
 const project = ref<any>(null)
 const files = ref<any[]>([])
