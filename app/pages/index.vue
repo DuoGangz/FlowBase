@@ -1,5 +1,5 @@
 <template>
-  <div class="p-6 space-y-4">
+  <div class="relative p-6 space-y-4">
     <div class="flex items-center justify-between gap-2 relative">
       <div class="w-full">
         <div class="relative mx-auto max-w-3xl border rounded-md h-40 flex items-end justify-center bg-gray-50 overflow-hidden">
@@ -25,8 +25,8 @@
           </template>
         </div>
       </div>
-      <div class="relative flex items-center gap-2">
-        <button class="bg-black text-white px-3 py-2 rounded" @click="toggleMenu">Add module</button>
+      <div class="absolute right-4 -top-2">
+        <button class="bg-black text-white px-3 py-2 rounded" @click="toggleMenu" aria-label="Add module"><span class="font-bold text-xl leading-none">+</span></button>
         <div v-if="menuOpen" class="absolute right-0 mt-2 w-40 bg-white border rounded-md shadow-md z-50">
           <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('todo')">Todo</button>
           <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('calendar')">Calendar</button>
