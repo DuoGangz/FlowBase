@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id       Int       @id @default(autoincrement())
+  name     String
+  users    User[]
+  projects Project[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  name      String
+  accountId Int
+  account   Account   @relation(fields: [accountId], references: [id])
+  messages  Message[]
+  todos     Todo[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Project {
+  id        Int       @id @default(autoincrement())
+  name      String
+  slug      String    @unique
+  accountId Int
+  account   Account   @relation(fields: [accountId], references: [id])
+  messages  Message[]
+  todos     Todo[]
+  files     File[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Message {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id])
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Todo {
+  id        Int       @id @default(autoincrement())
+  title     String
+  projectId Int
+  project   Project   @relation(fields: [projectId], references: [id])
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id])
+  items     TodoItem[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model TodoItem {
+  id        Int      @id @default(autoincrement())
+  content   String
+  done      Boolean  @default(false)
+  todoId    Int
+  todo      Todo     @relation(fields: [todoId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model File {
+  id        Int      @id @default(autoincrement())
+  path      String
+  metadata  Json
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
