@@ -3,8 +3,21 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MANAGER
+  USER
+}
+
+enum AuditAction {
+  ROLE_CHANGE
+  OWNERSHIP_TRANSFER
+  USER_CREATE
 }
 
 model Account {
@@ -20,10 +33,19 @@ model User {
   id        Int       @id @default(autoincrement())
   email     String    @unique
   name      String
+  username  String?   @unique
+  passwordHash String?
   accountId Int
   account   Account   @relation(fields: [accountId], references: [id])
   messages  Message[]
   todos     Todo[]
+  timeEntries TimeEntry[]
+  role      Role      @default(USER)
+  managerId Int?
+  manager   User?     @relation("UserManager", fields: [managerId], references: [id])
+  subordinates User[] @relation("UserManager")
+  auditLogsAuthored AuditLog[] @relation("AuditActor")
+  auditLogsTargeted AuditLog[] @relation("AuditTarget")
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }
@@ -85,4 +107,29 @@ model File {
   updatedAt DateTime @updatedAt
 }
 
+model TimeEntry {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id])
+  date      DateTime  // normalized to start of day (local)
+  clockIn   DateTime?
+  lunchOut  DateTime?
+  lunchIn   DateTime?
+  clockOut  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([userId, date])
+}
+
+model AuditLog {
+  id            Int          @id @default(autoincrement())
+  action        AuditAction
+  actorUserId   Int
+  actor         User         @relation("AuditActor", fields: [actorUserId], references: [id])
+  targetUserId  Int?
+  target        User?        @relation("AuditTarget", fields: [targetUserId], references: [id])
+  details       Json
+  createdAt     DateTime     @default(now())
+}
 
