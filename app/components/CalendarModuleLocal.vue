@@ -3,7 +3,6 @@
     :class="wrapperClass"
     :style="wrapperStyle"
     @mousedown="onWrapperMouseDown"
-    @dblclick="toggleInteractive"
   >
     <div class="flex items-center justify-between">
       <input v-model="title" class="font-medium w-full mr-2 border-b rounded-md px-2 py-1" />
@@ -11,9 +10,9 @@
     </div>
 
     <div class="flex items-center gap-2">
-      <button class="px-2 py-1 border rounded-md" :disabled="!interactive" @click="prevMonth">‹</button>
+      <button class="px-2 py-1 border rounded-md" @click="prevMonth">‹</button>
       <div class="font-medium">{{ monthLabel }}</div>
-      <button class="px-2 py-1 border rounded-md" :disabled="!interactive" @click="nextMonth">›</button>
+      <button class="px-2 py-1 border rounded-md" @click="nextMonth">›</button>
     </div>
 
     <div class="grid grid-cols-7 gap-1 text-center select-none">
@@ -40,7 +39,7 @@
 type GridDay = { date: Date; inMonth: boolean; key: string }
 
 const title = ref('Calendar')
-const interactive = ref(false)
+const interactive = ref(true)
 const position = reactive({ x: 0, y: 0 })
 const size = reactive({ w: 340, h: 320 })
 const dragState = reactive({ dragging: false, startX: 0, startY: 0, originX: 0, originY: 0 })
@@ -54,7 +53,7 @@ const wrapperStyle = computed(() => ({
 }))
 const wrapperClass = computed(() => [
   'border rounded-2xl p-4 space-y-3 shadow bg-white',
-  interactive.value ? 'select-text cursor-default ring-2 ring-gray-300' : 'select-none cursor-grab active:cursor-grabbing'
+  dragState.dragging ? 'select-none cursor-grabbing' : 'select-text cursor-default'
 ])
 
 const daysShort = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
@@ -94,6 +93,11 @@ function onMouseMove(e: MouseEvent) {
 function onMouseUp() {
   dragState.dragging = false
   resizeState.resizing = false
+  interactive.value = true
+  if (pressTimerId.value !== null) {
+    clearTimeout(pressTimerId.value)
+    pressTimerId.value = null
+  }
 }
 function startDrag(e: MouseEvent) {
   dragState.dragging = true
@@ -109,12 +113,19 @@ function startResize(e: MouseEvent) {
   resizeState.originW = size.w
   resizeState.originH = size.h
 }
+const DRAG_HOLD_MS = 200
+const pressTimerId = ref<number | null>(null)
+
 function onWrapperMouseDown(e: MouseEvent) {
-  if (interactive.value) return
-  startDrag(e)
-}
-function toggleInteractive() {
-  interactive.value = !interactive.value
+  if (e.button !== 0) return
+  dragState.startX = e.clientX
+  dragState.startY = e.clientY
+  dragState.originX = position.x
+  dragState.originY = position.y
+  pressTimerId.value = window.setTimeout(() => {
+    dragState.dragging = true
+    interactive.value = false
+  }, DRAG_HOLD_MS)
 }
 
 onMounted(() => {

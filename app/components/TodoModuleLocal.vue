@@ -3,19 +3,18 @@
     :class="wrapperClass"
     :style="wrapperStyle"
     @mousedown="onWrapperMouseDown"
-    @dblclick="toggleInteractive"
   >
     <div class="flex items-center justify-between">
       <input v-model="title" class="font-medium w-full mr-2 border-b rounded-md px-2 py-1" />
       <button class="text-sm text-red-600" @click="$emit('remove')">Remove</button>
     </div>
     <form class="flex gap-2" @submit.prevent="addItem">
-      <input v-model="newItem" placeholder="Add item" class="border rounded-md px-2 py-1 flex-1" :disabled="!interactive" />
-      <button class="bg-gray-800 text-white px-2 py-1 rounded-md" :disabled="!interactive">Add</button>
+      <input v-model="newItem" placeholder="Add item" class="border rounded-md px-2 py-1 flex-1" />
+      <button class="bg-gray-800 text-white px-2 py-1 rounded-md">Add</button>
     </form>
     <ul class="space-y-1">
       <li v-for="(it, idx) in items" :key="idx" class="flex items-center gap-2">
-        <input type="checkbox" v-model="it.done" :disabled="!interactive" />
+        <input type="checkbox" v-model="it.done" />
         <span :class="{ 'line-through text-gray-500': it.done }">{{ it.content }}</span>
       </li>
     </ul>
@@ -33,7 +32,7 @@
 const title = ref('Todo List')
 const items = ref<{ content:string; done:boolean }[]>([])
 const newItem = ref('')
-const interactive = ref(false)
+const interactive = ref(true)
 
 // drag + resize state
 const position = reactive({ x: 0, y: 0 })
@@ -50,7 +49,7 @@ const wrapperStyle = computed(() => ({
 
 const wrapperClass = computed(() => [
   'border rounded-2xl p-4 space-y-3 shadow bg-white',
-  interactive.value ? 'select-text cursor-default ring-2 ring-gray-300' : 'select-none cursor-grab active:cursor-grabbing'
+  dragState.dragging ? 'select-none cursor-grabbing' : 'select-text cursor-default'
 ])
 
 function onMouseMove(e: MouseEvent) {
@@ -67,6 +66,11 @@ function onMouseMove(e: MouseEvent) {
 function onMouseUp() {
   dragState.dragging = false
   resizeState.resizing = false
+  interactive.value = true
+  if (pressTimerId.value !== null) {
+    clearTimeout(pressTimerId.value)
+    pressTimerId.value = null
+  }
 }
 
 function startDrag(e: MouseEvent) {
@@ -85,13 +89,20 @@ function startResize(e: MouseEvent) {
   resizeState.originH = size.h
 }
 
-function onWrapperMouseDown(e: MouseEvent) {
-  if (interactive.value) return
-  startDrag(e)
-}
+const DRAG_HOLD_MS = 200
+const pressTimerId = ref<number | null>(null)
 
-function toggleInteractive() {
-  interactive.value = !interactive.value
+function onWrapperMouseDown(e: MouseEvent) {
+  if (e.button !== 0) return
+  // prepare potential drag; only start after hold
+  dragState.startX = e.clientX
+  dragState.startY = e.clientY
+  dragState.originX = position.x
+  dragState.originY = position.y
+  pressTimerId.value = window.setTimeout(() => {
+    dragState.dragging = true
+    interactive.value = false
+  }, DRAG_HOLD_MS)
 }
 
 onMounted(() => {
