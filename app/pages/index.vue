@@ -5,10 +5,24 @@
         <div class="relative mx-auto max-w-3xl border rounded-md h-40 flex items-end justify-center bg-gray-50 overflow-hidden">
           <img v-if="bannerUrl" :src="bannerUrl" alt="Banner" class="w-full h-full object-cover" />
           <div v-if="canEditBanner" class="absolute bottom-2 right-2">
-            <button class="px-3 py-1 border rounded bg-white/80 hover:bg-white" @click="fileInput!.click()">Upload banner</button>
+            <button class="w-6 h-6 border rounded-full bg-white/80 hover:bg-white flex items-center justify-center" @click.stop="toggleBannerMenu" aria-label="Banner options">
+              <span class="text-base leading-none">⋮</span>
+            </button>
+            <div v-if="bannerMenuOpen" class="absolute right-0 bottom-8 w-40 bg-white border rounded-md shadow-md z-50">
+              <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="openUpload">Upload Image</button>
+              <button class="w-full text-left px-3 py-2 hover:bg-gray-50" :disabled="!bannerUrl" @click="cropExisting">Properties</button>
+            </div>
           </div>
           <input v-if="canEditBanner" ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileChange" />
         </div>
+        <BannerCropper
+          v-if="cropFile"
+          :file="cropFile"
+          :target-width="bannerWidth"
+          :target-height="bannerHeight"
+          @cancel="cropFile=null"
+          @confirm="onCropConfirm"
+        />
         <div class="mx-auto max-w-3xl text-center mt-2">
           <template v-if="canEditBanner && editingTitle">
             <form class="inline-flex items-center gap-2" @submit.prevent="saveTitle">
@@ -58,6 +72,7 @@ import CalendarModuleLocal from '~/components/CalendarModuleLocal.vue'
 import ClockModuleLocal from '~/components/ClockModuleLocal.vue'
 import RoadmapModuleLocal from '~/components/RoadmapModuleLocal.vue'
 import { useUserStore } from '~~/stores/user'
+import BannerCropper from '~/components/BannerCropper.vue'
 
 const modules = ref<{ key: string; type: 'todo' | 'calendar' | 'clock' | 'roadmap' }[]>([])
 const menuOpen = ref(false)
@@ -69,6 +84,10 @@ const canEditBanner = computed(() => me.role === 'ADMIN' || me.role === 'OWNER')
 const siteTitle = ref('Home')
 const editingTitle = ref(false)
 const titleDraft = ref('Home')
+const bannerWidth = 1024
+const bannerHeight = 256
+const cropFile = ref<File | null>(null)
+const bannerMenuOpen = ref(false)
 
 async function loadBanner() {
   const res = await $fetch<{ url: string | null }>('/api/banner')
@@ -81,11 +100,16 @@ async function loadTitle() {
 async function onFileChange(e: Event) {
   const input = e.target as HTMLInputElement
   if (!input.files || input.files.length === 0) return
-  const fd = new FormData()
-  fd.append('file', input.files[0])
-  await $fetch('/api/banner', { method: 'POST', body: fd })
-  await loadBanner()
+  cropFile.value = input.files[0]
   input.value = ''
+}
+
+async function onCropConfirm(blob: Blob) {
+  const fd = new FormData()
+  fd.append('file', new File([blob], 'banner.jpg', { type: 'image/jpeg' }))
+  const res = await $fetch<{ ok: boolean; url: string }>('/api/banner', { method: 'POST', body: fd })
+  bannerUrl.value = res.url
+  cropFile.value = null
 }
 function startEditTitle() {
   titleDraft.value = siteTitle.value
@@ -104,6 +128,31 @@ function toggleMenu() {
   menuOpen.value = !menuOpen.value
 }
 
+function toggleBannerMenu() {
+  bannerMenuOpen.value = !bannerMenuOpen.value
+}
+function openUpload() {
+  bannerMenuOpen.value = false
+  fileInput.value?.click()
+}
+async function cropExisting() {
+  bannerMenuOpen.value = false
+  if (!bannerUrl.value) return
+  // fetch current banner as blob then open in cropper
+  try {
+    const res = await fetch(bannerUrl.value)
+    const blob = await res.blob()
+    cropFile.value = new File([blob], 'banner-current.jpg', { type: blob.type || 'image/jpeg' })
+  } catch {}
+}
+
+function onClickOutside(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (bannerMenuOpen.value) {
+    bannerMenuOpen.value = false
+  }
+}
+
 function addModule(type: 'todo' | 'calendar' | 'clock' | 'roadmap') {
   modules.value.push({ key: Math.random().toString(36).slice(2), type })
   menuOpen.value = false
@@ -114,6 +163,11 @@ function removeModule(key: string) {
 
 onMounted(async () => {
   await Promise.all([loadBanner(), loadTitle()])
+  window.addEventListener('click', onClickOutside)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('click', onClickOutside)
 })
 </script>
 
