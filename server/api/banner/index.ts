@@ -34,9 +34,8 @@ export default defineEventHandler(async (event) => {
     const file = form?.find((f: any) => f && f.filename && f.data)
     if (!file || !file.filename || !file.data) throw createError({ statusCode: 400, statusMessage: 'No file uploaded' })
 
-    const ext = ALLOWED_EXTS.includes(path.extname(file.filename).toLowerCase())
-      ? path.extname(file.filename).toLowerCase()
-      : '.jpg'
+    const incomingExt = path.extname(file.filename || '').toLowerCase()
+    const ext = ALLOWED_EXTS.includes(incomingExt) ? incomingExt : (file.type && file.type.includes('png') ? '.png' : (file.type && file.type.includes('webp') ? '.webp' : '.jpg'))
 
     // Remove any previous banner files with other extensions
     for (const e of ALLOWED_EXTS) {

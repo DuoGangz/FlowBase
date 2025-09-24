@@ -106,7 +106,9 @@ async function onFileChange(e: Event) {
 
 async function onCropConfirm(blob: Blob) {
   const fd = new FormData()
-  fd.append('file', new File([blob], 'banner.jpg', { type: 'image/jpeg' }))
+  const mime = blob.type || 'image/jpeg'
+  const ext = mime.includes('png') ? 'png' : (mime.includes('webp') ? 'webp' : 'jpg')
+  fd.append('file', new File([blob], `banner.${ext}`, { type: mime }))
   const res = await $fetch<{ ok: boolean; url: string }>('/api/banner', { method: 'POST', body: fd })
   bannerUrl.value = res.url
   cropFile.value = null

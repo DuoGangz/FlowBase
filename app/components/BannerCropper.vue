@@ -62,6 +62,7 @@ const emit = defineEmits<{ (e:'cancel'): void; (e:'confirm', blob: Blob): void }
 const imgUrl = ref<string | null>(null)
 const naturalWidth = ref(0)
 const naturalHeight = ref(0)
+const outputMime = ref<'image/jpeg' | 'image/png' | 'image/webp'>('image/jpeg')
 
 // Display frame follows the target aspect ratio but constrained to viewport
 const ratio = computed(() => props.targetWidth / props.targetHeight)
@@ -266,7 +267,8 @@ async function confirm() {
 
   ctx.imageSmoothingQuality = 'high'
   ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height)
-  const blob: Blob = await new Promise((res) => canvas.toBlob(b => res(b as Blob), 'image/jpeg', 0.92)!)
+  const quality = outputMime.value === 'image/jpeg' ? 0.98 : undefined
+  const blob: Blob = await new Promise((res) => canvas.toBlob(b => res(b as Blob), outputMime.value, quality as any)!)
   emit('confirm', blob)
 }
 
@@ -297,6 +299,11 @@ function loadFromFile(file: File) {
   minScale.value = 1
   translate.x = 0
   translate.y = 0
+  // choose output mime based on source image type
+  const t = (file.type || '').toLowerCase()
+  if (t.includes('png')) outputMime.value = 'image/png'
+  else if (t.includes('webp')) outputMime.value = 'image/webp'
+  else outputMime.value = 'image/jpeg'
 }
 </script>
 
