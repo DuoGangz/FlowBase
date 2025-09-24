@@ -5,11 +5,12 @@
       <NuxtLink to="/" class="underline">Back</NuxtLink>
     </div>
 
-    <div v-if="me.role === 'ADMIN' || me.role === 'OWNER'" class="border rounded-md p-4 space-y-2">
+    <div v-if="me && (me.role === 'ADMIN' || me.role === 'OWNER')" class="border rounded-md p-4 space-y-2">
       <h2 class="font-medium">Create User</h2>
-      <form class="grid gap-2 md:grid-cols-4" @submit.prevent="create">
+      <form class="grid gap-2 md:grid-cols-5" @submit.prevent="create">
         <input v-model="createForm.name" placeholder="Name" class="border rounded px-2 py-1" />
         <input v-model="createForm.email" placeholder="Email" class="border rounded px-2 py-1" />
+        <input v-model="createForm.username" placeholder="Username (optional)" class="border rounded px-2 py-1" />
         <select v-model="createForm.role" class="border rounded px-2 py-1">
           <option value="USER">USER</option>
           <option value="MANAGER">MANAGER</option>
@@ -19,7 +20,7 @@
           <option :value="undefined">No Manager</option>
           <option v-for="u in managers" :key="u.id" :value="u.id">Manager: {{ u.name }}</option>
         </select>
-        <div class="md:col-span-4">
+        <div class="md:col-span-5">
           <button class="px-3 py-2 border rounded">Create</button>
         </div>
       </form>
@@ -29,6 +30,7 @@
       <table class="min-w-full text-sm">
         <thead>
           <tr class="text-left border-b">
+            <th class="py-2 pr-4">Username</th>
             <th class="py-2 pr-4">Name</th>
             <th class="py-2 pr-4">Email</th>
             <th class="py-2 pr-4">Role</th>
@@ -38,65 +40,111 @@
         </thead>
         <tbody>
           <tr v-for="u in users" :key="u.id" class="border-b">
-            <td class="py-2 pr-4">{{ u.name }}</td>
+            <td class="py-2 pr-4">
+              <input v-model="u.username" :disabled="!canEdit(u)" class="border rounded px-2 py-1 w-40" />
+            </td>
+            <td class="py-2 pr-4">
+              <input v-model="u.name" :disabled="!canEdit(u)" class="border rounded px-2 py-1 w-40" />
+            </td>
             <td class="py-2 pr-4">{{ u.email }}</td>
             <td class="py-2 pr-4">
-              <select v-model="u.role" :disabled="!canEdit(u)" class="border rounded px-2 py-1">
+              <select v-model="u.role" :disabled="!canEditRole(u)" class="border rounded px-2 py-1">
                 <option value="USER">USER</option>
                 <option value="MANAGER">MANAGER</option>
-                <option v-if="me.role === 'ADMIN' || me.role === 'OWNER'" value="ADMIN">ADMIN</option>
+                <option v-if="me && (me.role === 'ADMIN' || me.role === 'OWNER')" value="ADMIN">ADMIN</option>
               </select>
             </td>
             <td class="py-2 pr-4">
-              <select v-model.number="u.managerId" :disabled="!canEdit(u)" class="border rounded px-2 py-1">
+              <select v-model.number="u.managerId" :disabled="!canChangeManager(u)" class="border rounded px-2 py-1">
                 <option :value="null">No Manager</option>
                 <option v-for="m in managers" :key="m.id" :value="m.id">{{ m.name }}</option>
               </select>
             </td>
             <td class="py-2 pr-4">
               <button class="px-3 py-1 border rounded disabled:opacity-50" :disabled="!dirty[u.id] || !canEdit(u)" @click="save(u)">Save</button>
+              <button class="ml-2 px-3 py-1 border rounded" :disabled="!canReset(u)" @click="openReset(u)">Reset Password</button>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
+
+    <div v-if="resetTarget" class="fixed inset-0 bg-black/30 flex items-center justify-center">
+      <div class="bg-white rounded-md p-4 w-96 space-y-2">
+        <h3 class="font-medium">Reset Password for {{ resetTarget.name }}</h3>
+        <input type="password" v-model="pwd1" placeholder="New password" class="border rounded px-2 py-1 w-full" />
+        <input type="password" v-model="pwd2" placeholder="Confirm password" class="border rounded px-2 py-1 w-full" />
+        <div class="text-sm text-red-600" v-if="pwdError">{{ pwdError }}</div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button class="px-3 py-1 border rounded" @click="closeReset">Cancel</button>
+          <button class="px-3 py-1 border rounded bg-black text-white" :disabled="!canSubmitPwd" @click="submitReset">Update</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useUserStore } from '~~/stores/user'
+type User = { id:number; name:string; username:string|null; email:string; role:'OWNER'|'ADMIN'|'MANAGER'|'USER'; managerId:number|null }
+type Me = { id:number; role:'OWNER'|'ADMIN'|'MANAGER'|'USER'; name:string; email:string }
 
-type User = { id:number; name:string; email:string; role:'OWNER'|'ADMIN'|'MANAGER'|'USER'; managerId:number|null }
-
-const me = useUserStore()
+const me = ref<Me | null>(null)
 const users = ref<User[]>([])
 const managers = computed(() => users.value.filter(u => u.role === 'MANAGER'))
 const dirty = reactive<Record<number, boolean>>({})
 
-const createForm = reactive<{ name:string; email:string; role:'ADMIN'|'MANAGER'|'USER'; managerId?: number }>(
-  { name: '', email: '', role: 'USER', managerId: undefined }
+const createForm = reactive<{ name:string; email:string; username?:string; role:'ADMIN'|'MANAGER'|'USER'; managerId?: number }>(
+  { name: '', email: '', username: '', role: 'USER', managerId: undefined }
 )
 
 watch(users, (val) => {
-  // track changes to enable Save button
   for (const u of val) dirty[u.id] = true
 }, { deep: true })
 
 function canEdit(target: User) {
-  if (me.role === 'OWNER') return true
-  if (me.role === 'ADMIN') return target.role !== 'OWNER'
-  if (me.role === 'MANAGER') return target.managerId === me.id
+  if (!me.value) return false
+  if (me.value.role === 'OWNER') return true
+  if (me.value.role === 'ADMIN') return target.role !== 'OWNER'
+  if (me.value.role === 'MANAGER') return target.managerId === me.value.id
+  return false
+}
+
+function canChangeManager(target: User) {
+  if (!me.value) return false
+  if (me.value.role === 'OWNER') return true
+  if (me.value.role === 'ADMIN') return target.role !== 'OWNER'
+  return false
+}
+
+function canReset(target: User) {
+  if (!me.value) return false
+  if (me.value.role === 'OWNER') return true
+  if (me.value.role === 'ADMIN') return target.role !== 'OWNER'
+  if (me.value.role === 'MANAGER') return target.managerId === me.value.id
+  return me.value.id === target.id
+}
+
+function canEditRole(target: User) {
+  if (!me.value) return false
+  if (me.value.role === 'OWNER') return true
+  if (me.value.role === 'ADMIN') return target.role !== 'OWNER'
+  // Managers cannot change roles
   return false
 }
 
 async function load() {
+  try {
+    me.value = await $fetch<Me>('/api/auth/me')
+  } catch {
+    me.value = null
+  }
   users.value = await $fetch<User[]>('/api/users')
   // reset dirty flags
   for (const u of users.value) dirty[u.id] = false
 }
 
 async function save(u: User) {
-  await $fetch('/api/users', { method: 'PUT', body: { id: u.id, role: u.role, managerId: u.managerId } })
+  await $fetch('/api/users', { method: 'PUT', body: { id: u.id, role: u.role, managerId: u.managerId, username: u.username, name: u.name } })
   dirty[u.id] = false
 }
 
@@ -104,12 +152,38 @@ async function create() {
   await $fetch('/api/users', { method: 'POST', body: { ...createForm } })
   createForm.name = ''
   createForm.email = ''
+  createForm.username = ''
   createForm.role = 'USER'
   createForm.managerId = undefined
   await load()
 }
 
 onMounted(load)
+
+// Password reset modal state
+const resetTarget = ref<User | null>(null)
+const pwd1 = ref('')
+const pwd2 = ref('')
+const pwdError = ref('')
+const canSubmitPwd = computed(() => pwd1.value.length > 0 && pwd1.value === pwd2.value)
+
+function openReset(u: User) {
+  pwd1.value = ''
+  pwd2.value = ''
+  pwdError.value = ''
+  resetTarget.value = u
+}
+function closeReset() {
+  resetTarget.value = null
+}
+async function submitReset() {
+  if (!canSubmitPwd.value || !resetTarget.value) {
+    pwdError.value = 'Passwords must match'
+    return
+  }
+  await $fetch('/api/users/password', { method: 'POST', body: { id: resetTarget.value.id, password: pwd1.value } })
+  resetTarget.value = null
+}
 </script>
 
 

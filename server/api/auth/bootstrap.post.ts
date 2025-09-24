@@ -15,7 +15,7 @@ export default defineEventHandler(async () => {
       email: 'admin@example.com',
       username: 'admin',
       passwordHash: '1234', // demo-only
-      role: 'OWNER',
+      role: 'ADMIN',
       accountId: account.id
     }
   })

@@ -9,7 +9,8 @@ export default defineEventHandler(async (event) => {
     return prisma.user.findMany({ orderBy: { createdAt: 'desc' } })
   }
   if (me.role === 'MANAGER') {
-    return prisma.user.findMany({ where: { managerId: me.id }, orderBy: { createdAt: 'desc' } })
+    // Managers can view all users (read-only for non-subordinates)
+    return prisma.user.findMany({ orderBy: { createdAt: 'desc' } })
   }
   // USER sees only self
   return prisma.user.findMany({ where: { id: me.id } })

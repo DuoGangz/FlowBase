@@ -23,6 +23,7 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({ middleware: ['owner-only'] })
 type User = { id:number; name:string; role:'OWNER'|'ADMIN'|'MANAGER'|'USER' }
 const targetUserId = ref<number>()
 const candidates = ref<User[]>([])
