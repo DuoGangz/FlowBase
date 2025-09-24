@@ -6,7 +6,7 @@
           <img v-if="bannerUrl" :src="bannerUrl" alt="Banner" class="w-full h-full object-cover" />
           <div v-if="canEditBanner" class="absolute bottom-2 right-2">
             <button class="w-6 h-6 border rounded-full bg-white/80 hover:bg-white flex items-center justify-center" @click.stop="toggleBannerMenu" aria-label="Banner options">
-              <span class="text-base leading-none">⋮</span>
+              <span class="text-base leading-none">...</span>
             </button>
             <div v-if="bannerMenuOpen" class="absolute right-0 bottom-8 w-40 bg-white border rounded-md shadow-md z-50">
               <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="openUpload">Upload Image</button>
@@ -50,7 +50,11 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-3 gap-4 relative">
+    <div
+      class="relative"
+      :class="snapMode ? '' : 'grid grid-cols-3 gap-4'"
+      :style="snapMode ? { minHeight: containerHeight + 'px' } : undefined"
+    >
       <!-- Debug grid overlay -->
       <div v-if="snapMode" class="absolute inset-0 pointer-events-none z-10">
         <svg class="w-full h-full" :viewBox="`0 0 ${containerWidth} ${containerHeight}`" preserveAspectRatio="none">
@@ -249,5 +253,6 @@ onBeforeUnmount(() => {
   window.removeEventListener('click', onClickOutside)
 })
 </script>
+
 
 

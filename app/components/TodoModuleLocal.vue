@@ -63,7 +63,9 @@ const wrapperStyle = computed(() => ({
   width: size.w + 'px',
   height: size.h + 'px',
   transform: `translate(${position.x}px, ${position.y}px)`,
-  position: 'relative',
+  position: props.snap ? 'absolute' : 'relative',
+  top: props.snap ? '0px' : 'auto',
+  left: props.snap ? '0px' : 'auto',
   boxSizing: 'border-box'
 }))
 
@@ -163,5 +165,6 @@ function addItem() {
   newItem.value = ''
 }
 </script>
+
 
 

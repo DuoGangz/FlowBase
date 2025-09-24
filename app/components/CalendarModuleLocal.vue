@@ -10,9 +10,9 @@
     </div>
 
     <div class="flex items-center gap-2">
-      <button class="px-2 py-1 border rounded-md" @click="prevMonth">‹</button>
+      <button class="px-2 py-1 border rounded-md" @click="prevMonth">&lt;</button>
       <div class="font-medium">{{ monthLabel }}</div>
-      <button class="px-2 py-1 border rounded-md" @click="nextMonth">›</button>
+      <button class="px-2 py-1 border rounded-md" @click="nextMonth">&gt;</button>
     </div>
 
     <div class="grid grid-cols-7 gap-1 text-center select-none">
@@ -64,7 +64,9 @@ const wrapperStyle = computed(() => ({
   width: size.w + 'px',
   height: size.h + 'px',
   transform: `translate(${position.x}px, ${position.y}px)`,
-  position: 'relative',
+  position: props.snap ? 'absolute' : 'relative',
+  top: props.snap ? '0px' : 'auto',
+  left: props.snap ? '0px' : 'auto',
   boxSizing: 'border-box'
 }))
 const wrapperClass = computed(() => [
@@ -167,5 +169,6 @@ onBeforeUnmount(() => {
   gridStore.release(props.uid)
 })
 </script>
+
 
 
