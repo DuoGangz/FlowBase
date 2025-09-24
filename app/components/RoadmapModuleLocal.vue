@@ -42,6 +42,16 @@
 </template>
 
 <script setup lang="ts">
+const props = defineProps<{ snap?: boolean }>()
+const GRID = { colWidth: 360, rowHeight: 240, gutterX: 16, gutterY: 16 }
+function roundToStep(v: number, s: number) { return Math.round(v / s) * s }
+function applySnap() {
+  if (!props.snap) return
+  size.w = GRID.colWidth
+  size.h = GRID.rowHeight
+  position.x = roundToStep(position.x, GRID.colWidth + GRID.gutterX)
+  position.y = roundToStep(position.y, GRID.rowHeight + GRID.gutterY)
+}
 type Entry = { description: string; date: string }
 
 const title = ref('Road Map')
@@ -124,6 +134,7 @@ function onMouseUp() {
   dragState.dragging = false
   resizeState.resizing = false
   interactive.value = true
+  applySnap()
   if (pressTimerId.value !== null) {
     clearTimeout(pressTimerId.value)
     pressTimerId.value = null
@@ -162,6 +173,7 @@ onMounted(() => {
   window.addEventListener('mousemove', onMouseMove)
   window.addEventListener('mouseup', onMouseUp)
 })
+watch(() => props.snap, () => applySnap())
 onBeforeUnmount(() => {
   window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('mouseup', onMouseUp)

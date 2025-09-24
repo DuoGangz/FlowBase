@@ -29,6 +29,20 @@
 </template>
 
 <script setup lang="ts">
+const props = defineProps<{ snap?: boolean }>()
+
+// Snap grid config (invisible): 2 columns x 3 rows style
+const GRID = { colWidth: 360, rowHeight: 240, gutterX: 16, gutterY: 16 }
+function roundToStep(v: number, step: number) { return Math.round(v / step) * step }
+function applySnap() {
+  if (!props.snap) return
+  size.w = GRID.colWidth
+  size.h = GRID.rowHeight
+  const stepX = GRID.colWidth + GRID.gutterX
+  const stepY = GRID.rowHeight + GRID.gutterY
+  position.x = roundToStep(position.x, stepX)
+  position.y = roundToStep(position.y, stepY)
+}
 const title = ref('Todo List')
 const items = ref<{ content:string; done:boolean }[]>([])
 const newItem = ref('')
@@ -67,6 +81,7 @@ function onMouseUp() {
   dragState.dragging = false
   resizeState.resizing = false
   interactive.value = true
+  applySnap()
   if (pressTimerId.value !== null) {
     clearTimeout(pressTimerId.value)
     pressTimerId.value = null
@@ -109,6 +124,7 @@ onMounted(() => {
   window.addEventListener('mousemove', onMouseMove)
   window.addEventListener('mouseup', onMouseUp)
 })
+watch(() => props.snap, () => applySnap())
 onBeforeUnmount(() => {
   window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('mouseup', onMouseUp)

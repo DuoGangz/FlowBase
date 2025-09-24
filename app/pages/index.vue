@@ -60,8 +60,25 @@
           mod.type === 'clock' ? ClockModuleLocal :
           RoadmapModuleLocal
         "
+        :snap="snapMode"
         @remove="removeModule(mod.key)"
       />
+    </div>
+
+    <!-- Snap/Free Form toggle (bottom-right) -->
+    <div class="fixed bottom-4 right-4 z-50">
+      <div class="inline-flex border rounded-full overflow-hidden shadow bg-white">
+        <button
+          class="px-3 py-1 text-sm"
+          :class="snapMode ? 'text-gray-600' : 'bg-black text-white'"
+          @click="snapMode=false"
+        >Free Form</button>
+        <button
+          class="px-3 py-1 text-sm"
+          :class="snapMode ? 'bg-black text-white' : 'text-gray-600'"
+          @click="snapMode=true"
+        >Snapping</button>
+      </div>
     </div>
   </div>
 </template>
@@ -88,6 +105,7 @@ const bannerWidth = 1024
 const bannerHeight = 256
 const cropFile = ref<File | null>(null)
 const bannerMenuOpen = ref(false)
+const snapMode = ref(false)
 
 async function loadBanner() {
   const res = await $fetch<{ url: string | null }>('/api/banner')
