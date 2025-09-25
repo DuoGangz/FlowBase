@@ -17,6 +17,7 @@ export const useSnapGridStore = defineStore('snapGrid', () => {
   const cellToId = ref({} as Record<string, string>)
   const cells = ref({} as Record<string, Cell>)
   const maxCols = ref(3)
+  const version = ref(0)
 
   function updateMaxCols(containerPx?: number) {
     const width = containerPx ?? window.innerWidth
@@ -109,10 +110,33 @@ export const useSnapGridStore = defineStore('snapGrid', () => {
     return { x: col * GRID.stepX, y: row * GRID.stepY }
   }
 
+  type SizePreset = 'small' | 'medium' | 'large'
+  function setSizePreset(preset: SizePreset) {
+    if (preset === 'small') {
+      GRID.colWidth = 450
+      GRID.rowHeight = 300
+    } else if (preset === 'medium') {
+      GRID.colWidth = 540
+      GRID.rowHeight = 360
+    } else {
+      GRID.colWidth = 660
+      GRID.rowHeight = 440
+    }
+    // trigger consumers to update
+    const cloned: Record<string, Cell> = {}
+    for (const id in cells.value) {
+      const c = cells.value[id]
+      if (c) cloned[id] = { ...c }
+    }
+    cells.value = cloned
+    version.value++
+  }
+
   return {
     cellToId,
     cells,
     maxCols,
+    version,
     updateMaxCols,
     key,
     release,
@@ -121,7 +145,8 @@ export const useSnapGridStore = defineStore('snapGrid', () => {
     nextCell,
     requestSnap,
     colRowFromPx,
-    pxFromColRow
+    pxFromColRow,
+    setSizePreset
   }
 })
 

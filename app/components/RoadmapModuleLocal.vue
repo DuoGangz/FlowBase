@@ -193,6 +193,18 @@ watch(() => gridStore.cells[props.uid], (cell) => {
   position.x = px.x
   position.y = px.y
 })
+// React to size preset changes
+watch(() => gridStore.version, () => {
+  if (!props.snap) return
+  size.w = GRID.colWidth
+  size.h = GRID.rowHeight
+  const cell = gridStore.cells[uid]
+  if (cell) {
+    const px = gridStore.pxFromColRow(cell.col, cell.row)
+    position.x = px.x
+    position.y = px.y
+  }
+})
 onBeforeUnmount(() => {
   window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('mouseup', onMouseUp)

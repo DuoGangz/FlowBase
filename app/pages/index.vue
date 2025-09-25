@@ -72,8 +72,18 @@
       />
     </div>
 
-    <!-- Snap/Free Form toggle (bottom-right) -->
-    <div class="fixed bottom-4 right-4 z-50">
+    <!-- Controls -->
+    <div class="fixed bottom-4 right-4 z-50 flex items-center gap-3">
+      <!-- Size preset (bottom-left of snapping per request) -->
+      <div class="fixed bottom-4 left-4">
+        <div class="inline-flex border rounded-full overflow-hidden shadow bg-white">
+          <button class="px-3 py-1 text-sm" :class="sizePreset==='small' ? 'bg-black text-white' : 'text-gray-700'" @click="setPreset('small')">S</button>
+          <button class="px-3 py-1 text-sm" :class="sizePreset==='medium' ? 'bg-black text-white' : 'text-gray-700'" @click="setPreset('medium')">M</button>
+          <button class="px-3 py-1 text-sm" :class="sizePreset==='large' ? 'bg-black text-white' : 'text-gray-700'" @click="setPreset('large')">L</button>
+        </div>
+      </div>
+
+      <!-- Snap/Free Form toggle (bottom-right) -->
       <div class="inline-flex border rounded-full overflow-hidden shadow bg-white">
         <button
           class="px-3 py-1 text-sm"
@@ -115,6 +125,7 @@ const cropFile = ref<File | null>(null)
 const bannerMenuOpen = ref(false)
 const snapMode = ref(false)
 const gridStore = useSnapGridStore()
+const sizePreset = ref<'small'|'medium'|'large'>('medium')
 const gridContainer = ref<HTMLElement | null>(null)
 
 // Debug grid dimensions (initialize to exact pixel grid without trailing gutter)
@@ -143,6 +154,13 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('resize', measureContainer)
 })
+
+function setPreset(preset: 'small'|'medium'|'large') {
+  sizePreset.value = preset
+  gridStore.setSizePreset(preset)
+  // recompute container to reflect new grid size
+  nextTick(() => measureContainer())
+}
 
 
 async function loadBanner() {
