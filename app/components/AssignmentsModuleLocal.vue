@@ -1,5 +1,10 @@
 <template>
-  <div class="border rounded-2xl p-2 space-y-2 shadow bg-white overflow-hidden relative pb-10">
+  <div
+    :class="wrapperClass"
+    :style="wrapperStyle"
+    @mousedown="onWrapperMouseDown"
+  >
+    <div class="space-y-2 relative pb-10">
     <div class="flex flex-wrap items-end justify-between gap-2">
       <h3 class="font-medium mr-2">Assignments</h3>
       <div class="flex flex-wrap items-end gap-2 w-full md:w-auto">
@@ -64,13 +69,117 @@
         <button class="px-3 h-8 text-sm" :class="viewMode==='authored' ? 'bg-black text-white' : 'bg-white'" @click="viewMode='authored'">Assignments</button>
       </div>
     </div>
+
+    </div>
+
+    <!-- Resize handle (bottom-right) -->
+    <div
+      class="absolute right-1 bottom-1 w-4 h-4 cursor-se-resize"
+      style="border-right: 2px solid #9ca3af; border-bottom: 2px solid #9ca3af;"
+      @mousedown.stop="startResize"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+const props = defineProps<{ snap?: boolean; uid: string }>()
+import { useSnapGridStore, GRID } from '~~/stores/snapGrid'
 type User = { id:number; name:string; role:'OWNER'|'ADMIN'|'ADMIN_MANAGER'|'MANAGER'|'USER' }
 type Assignment = { id:number; title:string; assignedToId:number; dueDate?: string | null }
 
+const gridStore = useSnapGridStore()
+function applySnap() {
+  if (!props.snap) return
+  size.w = GRID.colWidth
+  size.h = GRID.rowHeight
+  const desired = gridStore.colRowFromPx(position.x, position.y)
+  const cell = gridStore.requestSnap(props.uid, desired)
+  const px = gridStore.pxFromColRow(cell.col, cell.row)
+  position.x = px.x
+  position.y = px.y
+}
+
+const position = reactive({ x: 0, y: 0 })
+const size = reactive({ w: GRID.colWidth, h: GRID.rowHeight })
+const dragState = reactive({ dragging: false, startX: 0, startY: 0, originX: 0, originY: 0 })
+const resizeState = reactive({ resizing: false, startX: 0, startY: 0, originW: 0, originH: 0 })
+
+const wrapperStyle = computed(() => ({
+  width: size.w + 'px',
+  height: size.h + 'px',
+  transform: `translate(${position.x}px, ${position.y}px)`,
+  position: props.snap ? 'absolute' : 'relative',
+  top: props.snap ? '0px' : 'auto',
+  left: props.snap ? '0px' : 'auto',
+  boxSizing: 'border-box'
+}))
+const wrapperClass = computed(() => [
+  'border rounded-2xl p-2 shadow bg-white overflow-hidden relative',
+  dragState.dragging ? 'select-none cursor-grabbing z-50' : 'select-text cursor-default'
+])
+
+function onMouseMove(e: MouseEvent) {
+  if (dragState.dragging) {
+    position.x = dragState.originX + (e.clientX - dragState.startX)
+    position.y = dragState.originY + (e.clientY - dragState.startY)
+  } else if (resizeState.resizing) {
+    const nextW = Math.max(300, resizeState.originW + (e.clientX - resizeState.startX))
+    const nextH = Math.max(260, resizeState.originH + (e.clientY - resizeState.startY))
+    size.w = nextW
+    size.h = nextH
+  }
+}
+function onMouseUp() {
+  dragState.dragging = false
+  resizeState.resizing = false
+  if (props.snap) applySnap()
+}
+function onWrapperMouseDown(e: MouseEvent) {
+  if (e.button !== 0) return
+  dragState.dragging = true
+  dragState.startX = e.clientX
+  dragState.startY = e.clientY
+  dragState.originX = position.x
+  dragState.originY = position.y
+}
+function startResize(e: MouseEvent) {
+  resizeState.resizing = true
+  resizeState.startX = e.clientX
+  resizeState.startY = e.clientY
+  resizeState.originW = size.w
+  resizeState.originH = size.h
+}
+
+onMounted(() => {
+  window.addEventListener('mousemove', onMouseMove)
+  window.addEventListener('mouseup', onMouseUp)
+  if (props.snap) applySnap()
+})
+watch(() => gridStore.cells[props.uid], (cell) => {
+  if (!props.snap || !cell) return
+  if (dragState.dragging || resizeState.resizing) return
+  size.w = GRID.colWidth
+  size.h = GRID.rowHeight
+  const px = gridStore.pxFromColRow(cell.col, cell.row)
+  position.x = px.x
+  position.y = px.y
+})
+watch(() => gridStore.version, () => {
+  if (!props.snap) return
+  size.w = GRID.colWidth
+  size.h = GRID.rowHeight
+  const cell = gridStore.cells[props.uid]
+  if (cell) {
+    const px = gridStore.pxFromColRow(cell.col, cell.row)
+    position.x = px.x
+    position.y = px.y
+  }
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('mousemove', onMouseMove)
+  window.removeEventListener('mouseup', onMouseUp)
+  gridStore.release(props.uid)
+})
 const me = ref<{ id:number; role:'OWNER'|'ADMIN'|'MANAGER'|'USER' } | null>(null)
 const assignedToMe = ref<Assignment[]>([])
 const authored = ref<Assignment[]>([])
@@ -88,7 +197,7 @@ const assigneeId = ref(0)
 const viewMode = ref<'me'|'authored'>('me')
 const dueDate = ref('')
 
-const canAssign = computed(() => me.value && (me.value.role === 'OWNER' || me.value.role === 'MANAGER'))
+const canAssign = computed(() => me.value && (me.value.role === 'OWNER' || me.value.role === 'MANAGER' || me.value.role === 'ADMIN_MANAGER'))
 const canCreate = computed(() => canAssign.value && newTitle.value.trim() && assigneeId.value > 0)
 
 async function loadMe() {
