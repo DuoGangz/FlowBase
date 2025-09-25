@@ -41,7 +41,9 @@ async function load() {
 }
 
 async function logout() {
-  await $fetch('/api/auth/logout', { method: 'POST' })
+  try { await $fetch('/api/auth/logout', { method: 'POST' }) } catch {}
+  const { $googleLogout } = useNuxtApp()
+  try { await $googleLogout() } catch {}
   await navigateTo('/login')
 }
 

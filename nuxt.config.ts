@@ -6,5 +6,14 @@ export default defineNuxtConfig({
     '@nuxtjs/tailwindcss',
     '@pinia/nuxt'
   ],
-  css: []
+  css: [],
+  runtimeConfig: {
+    fbProjectId: process.env.FB_PROJECT_ID,
+    fbClientEmail: process.env.FB_CLIENT_EMAIL,
+    fbPrivateKey: process.env.FB_PRIVATE_KEY,
+    public: {
+      fbApiKey: process.env.FB_API_KEY,
+      fbAuthDomain: process.env.FB_AUTH_DOMAIN
+    }
+  }
 })
