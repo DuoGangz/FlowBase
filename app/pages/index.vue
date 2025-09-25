@@ -51,57 +51,12 @@
     </div>
 
     <div
-      class="relative"
+      class="relative mx-auto"
+      ref="gridContainer"
       :class="snapMode ? '' : 'grid grid-cols-3 gap-4'"
-      :style="snapMode ? { minHeight: containerHeight + 'px' } : undefined"
+      :style="snapMode ? { height: containerHeight + 'px', width: containerWidth + 'px' } : undefined"
     >
-      <!-- Debug grid overlay -->
-      <div v-if="snapMode" class="absolute inset-0 pointer-events-none z-10">
-        <svg class="w-full h-full" :viewBox="`0 0 ${containerWidth} ${containerHeight}`" preserveAspectRatio="none">
-          <!-- Light grey grid cells -->
-          <template v-for="row in GRID.ROWS" :key="`grid-row-${row}`">
-            <template v-for="col in GRID.COLS" :key="`grid-cell-${col}-${row}`">
-              <rect
-                :x="(col - 1) * gridStepX"
-                :y="(row - 1) * gridStepY"
-                :width="gridColWidth"
-                :height="gridRowHeight"
-                fill="rgba(200,200,200,0.1)"
-                stroke="rgba(200,200,200,0.3)"
-                stroke-width="1"
-              />
-            </template>
-          </template>
-
-          <!-- Red grid lines (for debug) -->
-          <defs>
-            <pattern id="grid-lines" :width="gridStepX" :height="gridStepY" patternUnits="userSpaceOnUse">
-              <path :d="`M ${gridStepX} 0 L 0 0 0 ${gridStepY}`" fill="none" stroke="rgba(255,0,0,0.3)" stroke-width="1"/>
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid-lines)" />
-
-          <!-- Green rectangles for occupied cells -->
-          <template v-for="(cell, id) in gridStore.cells" :key="id">
-            <rect
-              :x="cell.col * gridStepX"
-              :y="cell.row * gridStepY"
-              :width="gridColWidth"
-              :height="gridRowHeight"
-              fill="rgba(0,255,0,0.2)"
-              stroke="rgba(0,255,0,0.8)"
-              stroke-width="2"
-            />
-            <text
-              :x="cell.col * gridStepX + 10"
-              :y="cell.row * gridStepY + 20"
-              fill="red"
-              font-size="12"
-              font-family="monospace"
-            >{{ id.slice(0,4) }}</text>
-          </template>
-        </svg>
-      </div>
+      
       <component
         v-for="mod in modules"
         :key="mod.key"
@@ -160,14 +115,34 @@ const cropFile = ref<File | null>(null)
 const bannerMenuOpen = ref(false)
 const snapMode = ref(false)
 const gridStore = useSnapGridStore()
+const gridContainer = ref<HTMLElement | null>(null)
 
-// Debug grid dimensions
-const containerWidth = ref(948) // 3 columns * 316px (300px + 16px gutter)
-const containerHeight = ref(648) // 3 rows * 216px (200px + 16px gutter)
+// Debug grid dimensions (initialize to exact pixel grid without trailing gutter)
+const containerWidth = ref(GRID.COLS * GRID.colWidth + (GRID.COLS - 1) * GRID.gutterX)
+const containerHeight = ref(GRID.ROWS * GRID.rowHeight + (GRID.ROWS - 1) * GRID.gutterY)
 const gridStepX = GRID.stepX
 const gridStepY = GRID.stepY
 const gridColWidth = GRID.colWidth
 const gridRowHeight = GRID.rowHeight
+
+function measureContainer() {
+  if (!gridContainer.value) return
+  const w = GRID.COLS * GRID.colWidth + (GRID.COLS - 1) * GRID.gutterX
+  if (w > 0) {
+    containerWidth.value = w
+    // keep height as a multiple of row steps for the overlay
+    containerHeight.value = GRID.ROWS * GRID.rowHeight + (GRID.ROWS - 1) * GRID.gutterY
+    gridStore.updateMaxCols(w)
+  }
+}
+
+onMounted(() => {
+  measureContainer()
+  window.addEventListener('resize', measureContainer)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', measureContainer)
+})
 
 
 async function loadBanner() {

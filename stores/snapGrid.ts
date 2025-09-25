@@ -3,8 +3,8 @@ import { defineStore } from 'pinia'
 export type Cell = { col: number; row: number }
 
 export const GRID = {
-  colWidth: 300,
-  rowHeight: 200,
+  colWidth: 540, // +20%
+  rowHeight: 360, // +20%
   gutterX: 16,
   gutterY: 16,
   COLS: 3,
@@ -20,7 +20,8 @@ export const useSnapGridStore = defineStore('snapGrid', () => {
 
   function updateMaxCols(containerPx?: number) {
     const width = containerPx ?? window.innerWidth
-    maxCols.value = Math.max(1, Math.floor(width / GRID.stepX)) || 3
+    // Account for the missing trailing gutter when computing columns
+    maxCols.value = Math.max(1, Math.floor((width + GRID.gutterX) / GRID.stepX)) || 3
   }
 
   function key(col: number, row: number) { return `${col},${row}` }
