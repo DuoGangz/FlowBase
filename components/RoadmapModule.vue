@@ -32,7 +32,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { useUserStore } from '@/stores/user'
+import { useUserStore } from '~~/stores/user'
 
 const props = defineProps<{ projectId: number }>()
 const { id: userId } = storeToRefs(useUserStore())
