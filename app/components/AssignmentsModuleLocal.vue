@@ -7,22 +7,29 @@
     <div class="space-y-2 relative pb-10">
     <div class="flex flex-wrap items-end justify-between gap-2">
       <h3 class="font-medium mr-2">Assignments</h3>
-      <div class="flex flex-wrap items-end gap-2 w-full md:w-auto">
-        <div v-if="canAssign" class="order-3 md:order-2 flex items-end gap-2 flex-1 min-w-[260px]">
-          <input v-model="newTitle" placeholder="New task" class="border rounded px-2 h-8 text-sm w-40 md:w-48 flex-1" />
-          <div class="flex flex-col">
-            <label class="text-[10px] leading-none uppercase tracking-wide text-gray-500 mb-1">Employee</label>
-            <select v-model.number="assigneeId" class="border rounded px-2 h-8 text-sm min-w-[140px]">
-              <option :value="0">Select user</option>
-              <option v-for="u in filteredUsers" :key="u.id" :value="u.id">{{ u.name }}</option>
-            </select>
+      <div class="flex flex-wrap items-end gap-2 w-full md:w-auto pr-24">
+        <div v-if="canAssign" class="order-3 md:order-2 flex flex-wrap items-end gap-2 flex-1 min-w-[260px]">
+          <div class="flex items-end gap-2 flex-1 min-w-[420px] flex-nowrap">
+            <input v-model="newTitle" placeholder="New task" class="border rounded px-2 h-8 text-sm w-40 md:w-48 flex-1" />
+            <div class="flex flex-col">
+              <label class="text-[10px] leading-none uppercase tracking-wide text-gray-500 mb-1">Employee</label>
+              <select v-model.number="assigneeId" class="border rounded px-2 h-8 text-sm min-w-[140px]">
+                <option :value="0">Select user</option>
+                <option v-for="u in filteredUsers" :key="u.id" :value="u.id">{{ u.name }}</option>
+              </select>
+            </div>
+            <div class="flex flex-col">
+              <label class="text-[10px] leading-none uppercase tracking-wide text-gray-500 mb-1">Date</label>
+              <input type="date" v-model="dueDate" class="border rounded px-2 h-8 text-sm" />
+            </div>
           </div>
-          <div class="flex flex-col">
-            <label class="text-[10px] leading-none uppercase tracking-wide text-gray-500 mb-1">Date</label>
-            <input type="date" v-model="dueDate" class="border rounded px-2 h-8 text-sm" />
+          <div class="w-full flex justify-end mt-1">
+            <div class="w-28">
+              <button class="px-3 h-8 text-sm border rounded w-full" :disabled="!canCreate" @click="create">Assign</button>
+            </div>
           </div>
-          <button class="px-3 h-8 text-sm border rounded shrink-0" :disabled="!canCreate" @click="create">Assign</button>
         </div>
+        
         <!-- Top-right compact toggle -->
         <div v-if="canAssign" class="absolute top-1 right-2">
           <div class="inline-flex border rounded-full overflow-hidden shadow bg-white transform origin-top-right scale-[0.6] pointer-events-auto">
@@ -47,12 +54,12 @@
       </div>
 
       <ul v-if="!canAssign || viewMode==='me'" class="space-y-1">
-        <li v-for="a in assignedToMe" :key="a.id" class="flex items-center justify-between gap-2">
+        <li v-for="a in assignedToMe" :key="a.id" class="flex items-center gap-2">
           <div class="flex items-center gap-2 min-w-0">
             <input type="checkbox" :checked="false" @change="complete(a.id)" />
             <span class="truncate">{{ a.title }}</span>
           </div>
-          <span class="text-xs text-gray-500 w-28 text-right">{{ fmtDate(a.dueDate) }}</span>
+          <span class="text-xs text-gray-500 ml-auto w-28 text-right">{{ fmtDate(a.dueDate) }}</span>
         </li>
         <li v-if="assignedToMe.length===0" class="text-sm text-gray-500">No assignments</li>
       </ul>
@@ -118,7 +125,7 @@ const wrapperStyle = computed(() => ({
   boxSizing: 'border-box'
 }))
 const wrapperClass = computed(() => [
-  'border rounded-2xl p-2 shadow bg-white overflow-hidden relative',
+  'border rounded-2xl p-2 shadow bg-white overflow-x-hidden overflow-y-auto relative',
   dragState.dragging ? 'select-none cursor-grabbing z-50' : 'select-text cursor-default'
 ])
 
@@ -163,7 +170,7 @@ watch(() => gridStore.cells[props.uid], (cell) => {
   if (!props.snap || !cell) return
   if (dragState.dragging || resizeState.resizing) return
   size.w = GRID.colWidth
-  size.h = GRID.rowHeight
+  size.h = Math.max(GRID.rowHeight, 320)
   const px = gridStore.pxFromColRow(cell.col, cell.row)
   position.x = px.x
   position.y = px.y
@@ -171,7 +178,7 @@ watch(() => gridStore.cells[props.uid], (cell) => {
 watch(() => gridStore.version, () => {
   if (!props.snap) return
   size.w = GRID.colWidth
-  size.h = GRID.rowHeight
+  size.h = Math.max(GRID.rowHeight, 320)
   const cell = gridStore.cells[props.uid]
   if (cell) {
     const px = gridStore.pxFromColRow(cell.col, cell.row)
