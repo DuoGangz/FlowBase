@@ -25,7 +25,7 @@ async function loginWithGoogle() {
     await $fetch('/api/auth/firebase', { method: 'POST', body: { idToken } })
     await navigateTo('/', { replace: true })
   } catch (e: any) {
-    error.value = e?.data?.message || 'Google sign-in failed'
+    error.value = e?.data?.message || e?.message || e?.code || 'Google sign-in failed'
   }
 }
 
