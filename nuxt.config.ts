@@ -3,7 +3,10 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   nitro: {
-    preset: process.env.NITRO_PRESET || 'vercel'
+    preset: process.env.NITRO_PRESET || 'vercel',
+    serverAssets: [
+      { baseName: 'prisma', dir: 'prisma' }
+    ]
   },
   modules: [
     '@nuxtjs/tailwindcss',
