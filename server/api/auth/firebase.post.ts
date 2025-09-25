@@ -28,14 +28,24 @@ export default defineEventHandler(async (event) => {
   const email = decoded.email
   if (!email) throw createError({ statusCode: 400, statusMessage: 'Email required' })
 
+  // Determine role for first user
+  const totalUsers = await prisma.user.count()
+  const newUserRole = totalUsers === 0 ? 'OWNER' : 'USER'
+
   let user = await prisma.user.findUnique({ where: { email } })
   if (!user) {
+    // Ensure there is an account to attach the user to
+    let account = await prisma.account.findFirst()
+    if (!account) {
+      account = await prisma.account.create({ data: { name: 'Default' } })
+    }
     user = await prisma.user.create({
       data: {
         email,
         username: email,
         name: decoded.name || email.split('@')[0],
-        role: 'USER'
+        role: newUserRole as any,
+        accountId: account.id
       }
     })
   }

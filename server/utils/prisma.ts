@@ -1,6 +1,4 @@
 import { PrismaClient } from '@prisma/client'
-import { existsSync } from 'node:fs'
-import { join } from 'node:path'
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined }
 

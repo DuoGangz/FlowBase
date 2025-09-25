@@ -6,7 +6,7 @@
       <div class="flex items-center gap-2 text-xs text-gray-500"><div class="flex-1 h-px bg-gray-200"/><span>or use password</span><div class="flex-1 h-px bg-gray-200"/></div>
       <input v-model="username" placeholder="Username or email" class="border rounded px-3 py-2 w-full" />
       <input v-model="password" type="password" placeholder="Password" class="border rounded px-3 py-2 w-full" />
-      <button class="w-full bg-black text-white rounded px-3 py-2">Sign in with password</button>
+      <button type="button" class="w-full bg-black text-white rounded px-3 py-2 opacity-60 cursor-not-allowed">Password login disabled</button>
       <div v-if="error" class="text-red-600 text-sm">{{ error }}</div>
     </form>
   </div>
@@ -30,13 +30,7 @@ async function loginWithGoogle() {
 }
 
 async function login() {
-  error.value = ''
-  try {
-    await $fetch('/api/auth/login', { method: 'POST', body: { username: username.value, password: password.value } })
-    await navigateTo('/', { replace: true })
-  } catch (e: any) {
-    error.value = e?.data?.message || 'Login failed'
-  }
+  error.value = 'Password login disabled. Use Google.'
 }
 </script>
 
