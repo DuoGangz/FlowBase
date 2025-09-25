@@ -14,6 +14,7 @@
         <NuxtLink to="/time-report" class="text-sm underline">Time Report</NuxtLink>
         <NuxtLink v-if="me && me.role === 'OWNER'" to="/owner" class="text-sm underline">Owner</NuxtLink>
         <NuxtLink v-if="me && (me.role === 'OWNER' || me.role === 'ADMIN')" to="/audit-logs" class="text-sm underline">Audit Logs</NuxtLink>
+        <NuxtLink v-if="me && (me.role === 'OWNER' || me.role === 'MANAGER')" to="/activity-log" class="text-sm underline">Activity Log</NuxtLink>
         <NuxtLink v-if="me && (me.role === 'OWNER' || me.role === 'MANAGER' || me.role === 'ADMIN')" to="/users" class="text-sm underline">Users</NuxtLink>
       </div>
       <div class="flex items-center gap-3 justify-end pr-4">

@@ -10,6 +10,7 @@ datasource db {
 enum Role {
   OWNER
   ADMIN
+  ADMIN_MANAGER
   MANAGER
   USER
 }
@@ -26,6 +27,7 @@ model Account {
   users    User[]
   projects Project[]
   homePages HomePage[]
+  assignments Assignment[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -49,6 +51,8 @@ model User {
   auditLogsAuthored AuditLog[] @relation("AuditActor")
   auditLogsTargeted AuditLog[] @relation("AuditTarget")
   homePagePermissions HomePagePermission[]
+  assignmentsAuthored Assignment[] @relation("AssignmentAuthor")
+  assignmentsAssigned Assignment[] @relation("AssignmentAssignee")
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }
@@ -177,5 +181,26 @@ model HomePagePermission {
   createdAt  DateTime @default(now())
 
   @@unique([homePageId, userId])
+}
+
+/// Assignments are lightweight tasks assigned by OWNER/MANAGER to users.
+model Assignment {
+  id           Int      @id @default(autoincrement())
+  title        String
+  details      String?
+  assignedToId Int
+  assignedTo   User     @relation("AssignmentAssignee", fields: [assignedToId], references: [id])
+  assignedById Int
+  assignedBy   User     @relation("AssignmentAuthor", fields: [assignedById], references: [id])
+  dueDate      DateTime?
+  completed    Boolean  @default(false)
+  completedAt  DateTime?
+  accountId    Int
+  account      Account  @relation(fields: [accountId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([assignedToId])
+  @@index([assignedById])
 }
 

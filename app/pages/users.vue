@@ -15,6 +15,7 @@
           <option value="USER">USER</option>
           <option value="MANAGER">MANAGER</option>
           <option value="ADMIN">ADMIN</option>
+          <option v-if="me && me.role==='OWNER'" value="ADMIN_MANAGER">ADMIN_MANAGER</option>
         </select>
         <select v-model.number="createForm.managerId" class="border rounded px-2 py-1">
           <option :value="undefined">No Manager</option>
@@ -52,6 +53,7 @@
                 <option value="USER">USER</option>
                 <option value="MANAGER">MANAGER</option>
                 <option v-if="me && (me.role === 'ADMIN' || me.role === 'OWNER')" value="ADMIN">ADMIN</option>
+                <option v-if="me && me.role === 'OWNER'" value="ADMIN_MANAGER">ADMIN_MANAGER</option>
               </select>
             </td>
             <td class="py-2 pr-4">
@@ -108,15 +110,15 @@
 </template>
 
 <script setup lang="ts">
-type User = { id:number; name:string; username:string|null; email:string; role:'OWNER'|'ADMIN'|'MANAGER'|'USER'; managerId:number|null }
-type Me = { id:number; role:'OWNER'|'ADMIN'|'MANAGER'|'USER'; name:string; email:string }
+type User = { id:number; name:string; username:string|null; email:string; role:'OWNER'|'ADMIN'|'ADMIN_MANAGER'|'MANAGER'|'USER'; managerId:number|null }
+type Me = { id:number; role:'OWNER'|'ADMIN'|'ADMIN_MANAGER'|'MANAGER'|'USER'; name:string; email:string }
 
 const me = ref<Me | null>(null)
 const users = ref<User[]>([])
-const managers = computed(() => users.value.filter(u => u.role === 'MANAGER'))
+const managers = computed(() => users.value.filter(u => u.role === 'MANAGER' || u.role === 'ADMIN_MANAGER'))
 const dirty = reactive<Record<number, boolean>>({})
 
-const createForm = reactive<{ name:string; email:string; username?:string; role:'ADMIN'|'MANAGER'|'USER'; managerId?: number }>(
+const createForm = reactive<{ name:string; email:string; username?:string; role:'ADMIN'|'ADMIN_MANAGER'|'MANAGER'|'USER'; managerId?: number }>(
   { name: '', email: '', username: '', role: 'USER', managerId: undefined }
 )
 
@@ -128,7 +130,7 @@ function canEdit(target: User) {
   if (!me.value) return false
   if (me.value.role === 'OWNER') return true
   if (me.value.role === 'ADMIN') return target.role !== 'OWNER'
-  if (me.value.role === 'MANAGER') return target.managerId === me.value.id
+  if (me.value.role === 'MANAGER' || me.value.role === 'ADMIN_MANAGER') return target.managerId === me.value.id
   return false
 }
 
@@ -143,7 +145,7 @@ function canReset(target: User) {
   if (!me.value) return false
   if (me.value.role === 'OWNER') return true
   if (me.value.role === 'ADMIN') return target.role !== 'OWNER'
-  if (me.value.role === 'MANAGER') return target.managerId === me.value.id
+  if (me.value.role === 'MANAGER' || me.value.role === 'ADMIN_MANAGER') return target.managerId === me.value.id
   return me.value.id === target.id
 }
 
@@ -151,7 +153,7 @@ function canEditRole(target: User) {
   if (!me.value) return false
   if (me.value.role === 'OWNER') return true
   if (me.value.role === 'ADMIN') return target.role !== 'OWNER'
-  // Managers cannot change roles
+  // Managers cannot change roles; admin-managers same restriction
   return false
 }
 

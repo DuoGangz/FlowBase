@@ -20,10 +20,15 @@
       <div
         v-for="day in gridDays"
         :key="day.key"
-        class="h-8 flex items-center justify-center rounded-md"
+        class="h-14 flex flex-col items-center justify-start rounded-md p-1 text-xs"
         :class="day.inMonth ? 'bg-gray-50' : 'bg-white text-gray-400'"
       >
-        {{ day.date.getDate() }}
+        <div class="font-medium">{{ day.date.getDate() }}</div>
+        <ul class="mt-1 space-y-0.5 w-full">
+          <li v-for="e in eventsByDay(day.date)" :key="e.id" class="truncate text-[10px] leading-tight text-left">
+            • {{ e.title }}
+          </li>
+        </ul>
       </div>
     </div>
 
@@ -54,6 +59,26 @@ type GridDay = { date: Date; inMonth: boolean; key: string }
 
 const uid = Math.random().toString(36).slice(2)
 const title = ref('Calendar')
+type CalEvent = { id:number; title:string; date:string }
+const events = ref<CalEvent[]>([])
+function formatDateKey(d: Date) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth()+1).padStart(2,'0')
+  const day = String(d.getDate()).padStart(2,'0')
+  return `${y}-${m}-${day}`
+}
+function eventsByDay(d: Date) {
+  const key = formatDateKey(d)
+  return events.value.filter(e => e.date === key)
+}
+async function loadAssignmentEvents() {
+  try {
+    const list = await $fetch<any[]>(`/api/assignments?view=me`)
+    events.value = list
+      .filter(a => !!a.dueDate && !a.completed)
+      .map(a => ({ id: a.id, title: a.title, date: a.dueDate.slice(0,10) }))
+  } catch {}
+}
 const interactive = ref(true)
 const position = reactive({ x: 0, y: 0 })
 const size = reactive({ w: GRID.colWidth, h: GRID.rowHeight })
@@ -151,6 +176,9 @@ onMounted(() => {
   window.addEventListener('mousemove', onMouseMove)
   window.addEventListener('mouseup', onMouseUp)
   if (props.snap) applySnap()
+  loadAssignmentEvents()
+  // Refresh calendar when a new assignment is created
+  window.addEventListener('assignment-created', loadAssignmentEvents as any)
 })
 watch(() => props.snap, () => applySnap())
 
@@ -179,6 +207,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('mouseup', onMouseUp)
   gridStore.release(props.uid)
+  window.removeEventListener('assignment-created', loadAssignmentEvents as any)
 })
 </script>
 

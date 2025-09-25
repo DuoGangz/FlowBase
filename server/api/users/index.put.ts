@@ -1,7 +1,7 @@
 import { prisma } from '~~/server/utils/prisma'
 import { getCurrentUser } from '~~/server/utils/auth'
 
-type Body = { id: number; role?: 'OWNER' | 'ADMIN' | 'MANAGER' | 'USER'; managerId?: number | null; name?: string; email?: string; username?: string }
+type Body = { id: number; role?: 'OWNER' | 'ADMIN' | 'ADMIN_MANAGER' | 'MANAGER' | 'USER'; managerId?: number | null; name?: string; email?: string; username?: string }
 
 export default defineEventHandler(async (event) => {
   const me = await getCurrentUser(event)
@@ -21,18 +21,18 @@ export default defineEventHandler(async (event) => {
   }
 
   if (me.role === 'ADMIN') {
-    if (body.role === 'OWNER') throw createError({ statusCode: 403, statusMessage: 'Cannot assign OWNER' })
+    if (body.role === 'OWNER' || body.role === 'ADMIN_MANAGER') throw createError({ statusCode: 403, statusMessage: 'Cannot assign OWNER/ADMIN_MANAGER' })
     const updated = await prisma.user.update({ where: { id: target.id }, data: { role: body.role ?? undefined, managerId: body.managerId ?? undefined, name: body.name ?? undefined, email: body.email ?? undefined, username: body.username ?? undefined } })
     await prisma.auditLog.create({ data: { action: 'ROLE_CHANGE', actorUserId: me.id, targetUserId: updated.id, details: { from: target.role, to: updated.role, managerId: updated.managerId } } })
     return updated
   }
 
-  if (me.role === 'MANAGER') {
+  if (me.role === 'MANAGER' || me.role === 'ADMIN_MANAGER') {
     // Managers can edit only current subordinates
     const isEditableTarget = target.managerId === me.id
     if (!isEditableTarget) throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
-    // Managers cannot promote to OWNER or ADMIN
-    if (body.role === 'ADMIN' || body.role === 'OWNER') throw createError({ statusCode: 403, statusMessage: 'Cannot assign ADMIN/OWNER' })
+    // Managers cannot promote to OWNER or ADMIN or ADMIN_MANAGER
+    if (body.role === 'ADMIN' || body.role === 'OWNER' || body.role === 'ADMIN_MANAGER') throw createError({ statusCode: 403, statusMessage: 'Cannot assign ADMIN/OWNER/ADMIN_MANAGER' })
     // Managers cannot change manager assignment at all
     if (body.managerId !== undefined) {
       throw createError({ statusCode: 403, statusMessage: 'Managers cannot change manager assignment' })

@@ -47,6 +47,7 @@
             <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('calendar')">Calendar</button>
             <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('clock')">Time Clock</button>
             <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('roadmap')">Road Map</button>
+            <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('assignments')">Assignments</button>
           </div>
         </div>
         <div class="relative">
@@ -81,7 +82,7 @@
           mod.type === 'todo' ? TodoModuleLocal :
           mod.type === 'calendar' ? CalendarModuleLocal :
           mod.type === 'clock' ? ClockModuleLocal :
-          RoadmapModuleLocal
+          mod.type === 'roadmap' ? RoadmapModuleLocal : AssignmentsModuleLocal
         "
         :snap="snapMode"
         :uid="mod.key"
@@ -133,11 +134,12 @@ import TodoModuleLocal from '~/components/TodoModuleLocal.vue'
 import CalendarModuleLocal from '~/components/CalendarModuleLocal.vue'
 import ClockModuleLocal from '~/components/ClockModuleLocal.vue'
 import RoadmapModuleLocal from '~/components/RoadmapModuleLocal.vue'
+import AssignmentsModuleLocal from '~/components/AssignmentsModuleLocal.vue'
 import { useUserStore } from '~~/stores/user'
 import BannerCropper from '~/components/BannerCropper.vue'
 import { useSnapGridStore, GRID } from '~~/stores/snapGrid'
 
-const modules = ref<{ key: string; type: 'todo' | 'calendar' | 'clock' | 'roadmap' }[]>([])
+const modules = ref<{ key: string; type: 'todo' | 'calendar' | 'clock' | 'roadmap' | 'assignments' }[]>([])
 const menuOpen = ref(false)
 const pageMenuOpen = ref(false)
 const pages = ref<{ id:number; name:string; isDefault:boolean }[]>([])
@@ -272,7 +274,7 @@ function onClickOutside(e: MouseEvent) {
   }
 }
 
-function addModule(type: 'todo' | 'calendar' | 'clock' | 'roadmap') {
+function addModule(type: 'todo' | 'calendar' | 'clock' | 'roadmap' | 'assignments') {
   modules.value.push({ key: Math.random().toString(36).slice(2), type })
   menuOpen.value = false
   saveLayout()
