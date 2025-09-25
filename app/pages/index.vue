@@ -39,13 +39,30 @@
           </template>
         </div>
       </div>
-      <div class="absolute right-4 -top-2">
-        <button class="bg-black text-white px-3 py-2 rounded" @click="toggleMenu" aria-label="Add module"><span class="font-bold text-xl leading-none">+</span></button>
-        <div v-if="menuOpen" class="absolute right-0 mt-2 w-40 bg-white border rounded-md shadow-md z-50">
-          <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('todo')">Todo</button>
-          <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('calendar')">Calendar</button>
-          <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('clock')">Time Clock</button>
-          <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('roadmap')">Road Map</button>
+      <div class="absolute right-4 -top-2 flex flex-col items-end gap-2">
+        <div class="relative">
+          <button class="bg-black text-white px-3 py-2 rounded" @click="toggleMenu" aria-label="Add module"><span class="font-bold text-xl leading-none">+</span></button>
+          <div v-if="menuOpen" class="absolute right-0 mt-2 w-40 bg-white border rounded-md shadow-md z-50">
+            <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('todo')">Todo</button>
+            <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('calendar')">Calendar</button>
+            <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('clock')">Time Clock</button>
+            <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('roadmap')">Road Map</button>
+          </div>
+        </div>
+        <div class="relative">
+          <button class="w-8 h-8 border rounded bg-white hover:bg-gray-50 flex items-center justify-center" @click.stop="togglePageMenu" aria-label="Switch page">
+            <span class="text-xl leading-none">▾</span>
+          </button>
+          <div v-if="pageMenuOpen" class="absolute right-0 mt-2 w-56 bg-white border rounded-md shadow-md z-50">
+            <div class="px-3 py-2 text-xs text-gray-500">Home Pages</div>
+            <button v-for="p in pages" :key="p.id" class="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between" @click="switchPage(p.id)">
+              <span :class="{ 'font-semibold': p.id === currentPageId }">{{ p.name }}</span>
+              <span v-if="p.id === currentPageId" class="text-xs text-gray-500">current</span>
+            </button>
+            <div v-if="canManagePages" class="border-t">
+              <button class="w-full text-left px-3 py-2 hover:bg-gray-50 disabled:opacity-50" :disabled="pages.length >= 4" @click="openCreatePage">+ New Page</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -96,6 +113,17 @@
           @click="snapMode=true"
         >Snapping</button>
       </div>
+      <!-- Create Page Modal -->
+      <div v-if="showCreateModal" class="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+        <div class="bg-white rounded-md p-4 w-96 space-y-3">
+          <h3 class="font-medium">Create New Home Page</h3>
+          <input v-model="newPageName" placeholder="Page name" class="border rounded px-2 py-1 w-full" />
+          <div class="flex justify-end gap-2">
+            <button class="px-3 py-1 border rounded" @click="showCreateModal=false">Cancel</button>
+            <button class="px-3 py-1 border rounded bg-black text-white" :disabled="!newPageName.trim()" @click="createPage">Create</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -111,11 +139,17 @@ import { useSnapGridStore, GRID } from '~~/stores/snapGrid'
 
 const modules = ref<{ key: string; type: 'todo' | 'calendar' | 'clock' | 'roadmap' }[]>([])
 const menuOpen = ref(false)
+const pageMenuOpen = ref(false)
+const pages = ref<{ id:number; name:string; isDefault:boolean }[]>([])
+const currentPageId = ref<number | null>(null)
+const showCreateModal = ref(false)
+const newPageName = ref('')
 
 const me = useUserStore()
+const meServer = ref<{ id:number; role:'OWNER'|'ADMIN'|'MANAGER'|'USER' } | null>(null)
 const bannerUrl = ref<string | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
-const canEditBanner = computed(() => me.role === 'ADMIN' || me.role === 'OWNER')
+const canEditBanner = computed(() => (meServer.value ? (meServer.value.role === 'ADMIN' || meServer.value.role === 'OWNER') : (me.role === 'ADMIN' || me.role === 'OWNER')))
 const siteTitle = ref('Home')
 const editingTitle = ref(false)
 const titleDraft = ref('Home')
@@ -204,6 +238,10 @@ function toggleMenu() {
   menuOpen.value = !menuOpen.value
 }
 
+function togglePageMenu() {
+  pageMenuOpen.value = !pageMenuOpen.value
+}
+
 function toggleBannerMenu() {
   bannerMenuOpen.value = !bannerMenuOpen.value
 }
@@ -227,18 +265,77 @@ function onClickOutside(e: MouseEvent) {
   if (bannerMenuOpen.value) {
     bannerMenuOpen.value = false
   }
+  if (pageMenuOpen.value) {
+    const btn = (e.target as HTMLElement)
+    // naive close; in a more robust version we'd check refs
+    pageMenuOpen.value = false
+  }
 }
 
 function addModule(type: 'todo' | 'calendar' | 'clock' | 'roadmap') {
   modules.value.push({ key: Math.random().toString(36).slice(2), type })
   menuOpen.value = false
+  saveLayout()
 }
 function removeModule(key: string) {
   modules.value = modules.value.filter(m => m.key !== key)
+  saveLayout()
+}
+
+const canManagePages = computed(() => (meServer.value ? (meServer.value.role === 'OWNER' || meServer.value.role === 'ADMIN') : (me.role === 'OWNER' || me.role === 'ADMIN')))
+
+async function loadPages() {
+  pages.value = await $fetch('/api/home-pages')
+  if (!currentPageId.value) {
+    const def = pages.value.find(p => p.isDefault) || pages.value[0]
+    if (def) currentPageId.value = def.id
+  }
+  if (currentPageId.value) await loadLayout(currentPageId.value)
+}
+
+async function loadLayout(id: number) {
+  const page = await $fetch<{ id:number; name:string; layout:any }>(`/api/home-pages/${id}`)
+  modules.value = Array.isArray(page.layout?.modules) ? page.layout.modules : []
+}
+
+async function saveLayout() {
+  if (!currentPageId.value) return
+  try {
+    await $fetch(`/api/home-pages/${currentPageId.value}`, { method: 'PUT', body: { layout: { modules: modules.value } } })
+  } catch {}
+}
+
+async function switchPage(id: number) {
+  currentPageId.value = id
+  await loadLayout(id)
+}
+
+async function createPage() {
+  if (!newPageName.value.trim()) return
+  const created = await $fetch<{ id:number }>(`/api/home-pages`, { method: 'POST', body: { name: newPageName.value.trim() } })
+  newPageName.value = ''
+  showCreateModal.value = false
+  await loadPages()
+  if (created?.id) await switchPage(created.id)
+}
+
+function openCreatePage() {
+  if (pages.value.length >= 4) return
+  newPageName.value = ''
+  showCreateModal.value = true
+  pageMenuOpen.value = false
+}
+
+async function loadMe() {
+  try {
+    meServer.value = await $fetch('/api/auth/me')
+  } catch {
+    meServer.value = null
+  }
 }
 
 onMounted(async () => {
-  await Promise.all([loadBanner(), loadTitle()])
+  await Promise.all([loadBanner(), loadTitle(), loadPages(), loadMe()])
   window.addEventListener('click', onClickOutside)
 })
 
@@ -246,6 +343,3 @@ onBeforeUnmount(() => {
   window.removeEventListener('click', onClickOutside)
 })
 </script>
-
-
-

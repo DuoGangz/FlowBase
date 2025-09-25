@@ -63,6 +63,7 @@
             <td class="py-2 pr-4">
               <button class="px-3 py-1 border rounded disabled:opacity-50" :disabled="!dirty[u.id] || !canEdit(u)" @click="save(u)">Save</button>
               <button class="ml-2 px-3 py-1 border rounded" :disabled="!canReset(u)" @click="openReset(u)">Reset Password</button>
+              <button v-if="me && (me.role==='OWNER' || me.role==='ADMIN')" class="ml-2 px-3 py-1 border rounded" @click="openPageAccess(u)">Page Access</button>
             </td>
           </tr>
         </tbody>
@@ -78,6 +79,28 @@
         <div class="flex justify-end gap-2 pt-2">
           <button class="px-3 py-1 border rounded" @click="closeReset">Cancel</button>
           <button class="px-3 py-1 border rounded bg-black text-white" :disabled="!canSubmitPwd" @click="submitReset">Update</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="accessTarget" class="fixed inset-0 bg-black/30 flex items-center justify-center">
+      <div class="bg-white rounded-md p-4 w-[520px] space-y-3">
+        <h3 class="font-medium">Home Page Access for {{ accessTarget.name }}</h3>
+        <div class="space-y-2 max-h-80 overflow-auto">
+          <div v-for="p in accessPages" :key="p.id" class="flex items-center justify-between border rounded px-2 py-1">
+            <div class="flex items-center gap-2">
+              <input type="checkbox" v-model="accessAssignments[p.id].enabled" />
+              <span>{{ p.name }}</span>
+            </div>
+            <label class="text-sm flex items-center gap-1">
+              <input type="checkbox" v-model="accessAssignments[p.id].canEdit" :disabled="!accessAssignments[p.id].enabled" />
+              Can edit layout
+            </label>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button class="px-3 py-1 border rounded" @click="closePageAccess">Cancel</button>
+          <button class="px-3 py-1 border rounded bg-black text-white" @click="savePageAccess">Save</button>
         </div>
       </div>
     </div>
@@ -184,6 +207,43 @@ async function submitReset() {
   await $fetch('/api/users/password', { method: 'POST', body: { id: resetTarget.value.id, password: pwd1.value } })
   resetTarget.value = null
 }
+
+// Page access modal (owners/admins)
+const accessTarget = ref<User | null>(null)
+const accessPages = ref<{ id:number; name:string }[]>([])
+const accessAssignments = ref<Record<number, { enabled:boolean; canEdit:boolean }>>({})
+
+async function openPageAccess(u: User) {
+  accessTarget.value = u
+  const all = await $fetch<{ id:number; name:string }[]>('/api/home-pages')
+  accessPages.value = all
+  // Load current permissions
+  const pagePerms = await Promise.all(all.map(async (p) => {
+    const perms = await $fetch<any[]>(`/api/home-pages/permissions?homePageId=${p.id}`)
+    const entry = perms.find(x => x.userId === u.id)
+    return { pageId: p.id, enabled: !!entry, canEdit: entry?.canEdit ?? false }
+  }))
+  const map: Record<number, { enabled:boolean; canEdit:boolean }> = {}
+  for (const it of pagePerms) map[it.pageId] = { enabled: it.enabled, canEdit: it.canEdit }
+  accessAssignments.value = map
+}
+
+function closePageAccess() {
+  accessTarget.value = null
+  accessPages.value = []
+  accessAssignments.value = {}
+}
+
+async function savePageAccess() {
+  if (!accessTarget.value) return
+  // For each page, submit a consolidated assignments list
+  for (const p of accessPages.value) {
+    const a = accessAssignments.value[p.id] || { enabled: false, canEdit: false }
+    await $fetch('/api/home-pages/permissions', {
+      method: 'POST',
+      body: { homePageId: p.id, assignments: [{ userId: accessTarget.value.id, enabled: a.enabled, canEdit: a.canEdit }] }
+    })
+  }
+  closePageAccess()
+}
 </script>
-
-

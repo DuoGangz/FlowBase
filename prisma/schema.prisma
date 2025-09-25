@@ -25,6 +25,7 @@ model Account {
   name     String
   users    User[]
   projects Project[]
+  homePages HomePage[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -47,6 +48,7 @@ model User {
   subordinates User[] @relation("UserManager")
   auditLogsAuthored AuditLog[] @relation("AuditActor")
   auditLogsTargeted AuditLog[] @relation("AuditTarget")
+  homePagePermissions HomePagePermission[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }
@@ -145,5 +147,35 @@ model RoadmapEntry {
   user        User      @relation(fields: [userId], references: [id])
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+/// A customizable home page with independent module layout/state per account
+model HomePage {
+  id         Int      @id @default(autoincrement())
+  accountId  Int
+  account    Account  @relation(fields: [accountId], references: [id])
+  name       String
+  /// JSON blob containing layout/modules configuration
+  layout     Json
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  permissions HomePagePermission[]
+
+  @@unique([accountId, name])
+}
+
+/// Explicit grants for which users can access a given home page
+model HomePagePermission {
+  id         Int      @id @default(autoincrement())
+  homePageId Int
+  homePage   HomePage @relation(fields: [homePageId], references: [id])
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+  canEdit    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@unique([homePageId, userId])
 }
 
