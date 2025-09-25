@@ -54,8 +54,8 @@
 
 <script setup lang="ts">
 import MessageBoard from '~/components/MessageBoard.vue'
-import TodoModule from '~/components/TodoModule.vue'
-import RoadmapModule from '~/components/RoadmapModule.vue'
+import TodoModule from '~~/components/TodoModule.vue'
+import RoadmapModule from '~~/components/RoadmapModule.vue'
 
 const route = useRoute()
 const activeTab = ref<'messages' | 'todos' | 'roadmap' | 'files'>('messages')
