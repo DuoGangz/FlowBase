@@ -23,16 +23,26 @@
           </div>
           <button class="px-3 h-8 text-sm border rounded shrink-0" :disabled="!canCreate" @click="create">Assign</button>
         </div>
+        <!-- Top-right compact toggle -->
+        <div v-if="canAssign" class="absolute top-1 right-2">
+          <div class="inline-flex border rounded-full overflow-hidden shadow bg-white transform origin-top-right scale-[0.6] pointer-events-auto">
+            <button class="px-3 h-8 text-sm" :class="viewMode==='me' ? 'bg-black text-white' : 'bg-white'" @click="viewMode='me'">Assigned to me</button>
+            <button class="px-3 h-8 text-sm" :class="viewMode==='authored' ? 'bg-black text-white' : 'bg-white'" @click="viewMode='authored'">Assignments</button>
+          </div>
+        </div>
       </div>
     </div>
 
     <div class="mt-1">
-      <div v-if="!canAssign || viewMode==='me'" class="text-sm font-medium mb-1">Assigned to me</div>
+      <div v-if="!canAssign || viewMode==='me'" class="flex items-end justify-between mb-1">
+        <div class="text-sm font-medium">Assigned to me</div>
+        <span class="text-xs font-bold text-gray-700 w-28 text-right">Due date</span>
+      </div>
       <div v-else class="flex items-end justify-between mb-1">
         <div class="text-sm font-medium">Assignments</div>
         <div class="flex items-center gap-4">
-          <span class="text-xs font-semibold text-gray-700 w-40 text-right">Employee</span>
-          <span class="text-xs font-semibold text-gray-700 w-28 text-right">Due date</span>
+          <span class="text-xs font-bold text-gray-700 w-40 text-right">Employee</span>
+          <span class="text-xs font-bold text-gray-700 w-28 text-right">Due date</span>
         </div>
       </div>
 
@@ -62,13 +72,7 @@
       </ul>
     </div>
 
-    <!-- Bottom-right compact toggle for owners/managers -->
-    <div v-if="canAssign" class="absolute bottom-2 right-2 z-10">
-      <div class="inline-flex border rounded-full overflow-hidden shadow bg-white transform origin-bottom-right scale-[0.6]">
-        <button class="px-3 h-8 text-sm" :class="viewMode==='me' ? 'bg-black text-white' : 'bg-white'" @click="viewMode='me'">Assigned to me</button>
-        <button class="px-3 h-8 text-sm" :class="viewMode==='authored' ? 'bg-black text-white' : 'bg-white'" @click="viewMode='authored'">Assignments</button>
-      </div>
-    </div>
+    
 
     </div>
 
