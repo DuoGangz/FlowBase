@@ -8,6 +8,13 @@ export default defineNuxtConfig({
       { baseName: 'prisma', dir: 'prisma' }
     ]
   },
+  routeRules: {
+    '/**': {
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin-allow-popups'
+      }
+    }
+  },
   modules: [
     '@nuxtjs/tailwindcss',
     '@pinia/nuxt'
