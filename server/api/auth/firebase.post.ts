@@ -49,26 +49,35 @@ export default defineEventHandler(async (event) => {
   const email = decoded.email
   if (!email) throw createError({ statusCode: 400, statusMessage: 'Email required' })
 
-  // Determine role for first user
-  const totalUsers = await prisma.user.count()
-  const newUserRole = totalUsers === 0 ? 'OWNER' : 'USER'
+  let user
+  try {
+    // Determine role for first user
+    const totalUsers = await prisma.user.count()
+    const newUserRole = totalUsers === 0 ? 'OWNER' : 'USER'
 
-  let user = await prisma.user.findUnique({ where: { email } })
-  if (!user) {
-    // Ensure there is an account to attach the user to
-    let account = await prisma.account.findFirst()
-    if (!account) {
-      account = await prisma.account.create({ data: { name: 'Default' } })
-    }
-    user = await prisma.user.create({
-      data: {
-        email,
-        username: email,
-        name: decoded.name || email.split('@')[0],
-        role: newUserRole as any,
-        accountId: account.id
+    user = await prisma.user.findUnique({ where: { email } })
+    if (!user) {
+      // Ensure there is an account to attach the user to
+      let account = await prisma.account.findFirst()
+      if (!account) {
+        account = await prisma.account.create({ data: { name: 'Default' } })
       }
-    })
+      user = await prisma.user.create({
+        data: {
+          email,
+          username: email,
+          name: decoded.name || email.split('@')[0],
+          role: newUserRole as any,
+          accountId: account.id
+        }
+      })
+    }
+  } catch (e: any) {
+    const code = e?.code || e?.name
+    const message = e?.message || String(e)
+    console.error('[Auth] Database operation failed:', code, message)
+    // Common on Vercel with SQLite: SQLITE_READONLY: attempt to write a readonly database
+    throw createError({ statusCode: 500, statusMessage: 'Database error during sign-in. The database may be read-only or unavailable.' })
   }
 
   setUserSession(event, user.id)
