@@ -46,8 +46,9 @@
     <div v-else class="space-y-2 select-none">
       <div class="text-sm text-gray-600">{{ dayHeaderLabel }}</div>
       <ul class="space-y-1">
-        <li v-for="e in eventsByDay(selectedDate)" :key="e.id" class="text-sm">
-          {{ e.title }}
+        <li v-for="e in eventsByDaySorted(selectedDate)" :key="e.id" class="text-sm flex items-center gap-2">
+          <span class="inline-block w-14 text-gray-600">{{ formatTime12h(e.at) }}</span>
+          <span>{{ e.title }}</span>
         </li>
         <li v-if="!eventsByDay(selectedDate).length" class="text-sm text-gray-500">No items scheduled</li>
       </ul>
@@ -80,7 +81,7 @@ type GridDay = { date: Date; inMonth: boolean; key: string }
 
 const uid = Math.random().toString(36).slice(2)
 const title = ref('Calendar')
-type CalEvent = { id:number; title:string; date:string }
+type CalEvent = { id:number; title:string; at: Date }
 const events = ref<CalEvent[]>([])
 function formatDateKey(d: Date) {
   const y = d.getFullYear()
@@ -90,14 +91,14 @@ function formatDateKey(d: Date) {
 }
 function eventsByDay(d: Date) {
   const key = formatDateKey(d)
-  return events.value.filter(e => e.date === key)
+  return events.value.filter(e => formatDateKey(e.at) === key)
 }
 async function loadAssignmentEvents() {
   try {
     const list = await $fetch<any[]>(`/api/assignments?view=me`)
     events.value = list
       .filter(a => !!a.dueDate && !a.completed)
-      .map(a => ({ id: a.id, title: a.title, date: a.dueDate.slice(0,10) }))
+      .map(a => ({ id: a.id, title: a.title, at: new Date(a.dueDate) }))
   } catch {}
 }
 const interactive = ref(true)
@@ -225,6 +226,17 @@ function goNext() {
     d.setDate(d.getDate() + 1)
     selectedDate.value = d
     viewDate.value = d
+  }
+}
+
+const eventsByDaySorted = (d: Date) => {
+  return [...eventsByDay(d)].sort((a, b) => a.at.getTime() - b.at.getTime())
+}
+function formatTime12h(dt: Date) {
+  try {
+    return dt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true })
+  } catch {
+    return ''
   }
 }
 

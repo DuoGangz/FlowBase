@@ -18,9 +18,15 @@
                 <option v-for="u in filteredUsers" :key="u.id" :value="u.id">{{ u.name }}</option>
               </select>
             </div>
-            <div class="flex flex-col">
-              <label class="text-[10px] leading-none uppercase tracking-wide text-gray-500 mb-1">Date</label>
-              <input type="date" v-model="dueDate" class="border rounded px-2 h-8 text-sm" />
+            <div class="flex items-end gap-2">
+              <div class="flex flex-col">
+                <label class="text-[10px] leading-none uppercase tracking-wide text-gray-500 mb-1">Date</label>
+                <input type="date" v-model="dueDate" class="border rounded px-2 h-8 text-sm" />
+              </div>
+              <div class="flex flex-col">
+                <label class="text-[10px] leading-none uppercase tracking-wide text-gray-500 mb-1">Time</label>
+                <input type="time" v-model="dueTime" class="border rounded px-2 h-8 text-sm w-[110px]" />
+              </div>
             </div>
           </div>
           <div class="w-full flex justify-end mt-1">
@@ -209,6 +215,7 @@ const newTitle = ref('')
 const assigneeId = ref(0)
 const viewMode = ref<'me'|'authored'>('me')
 const dueDate = ref('')
+const dueTime = ref('')
 
 const canAssign = computed(() => me.value && (me.value.role === 'OWNER' || me.value.role === 'MANAGER' || me.value.role === 'ADMIN_MANAGER'))
 const canCreate = computed(() => canAssign.value && newTitle.value.trim() && assigneeId.value > 0)
@@ -236,12 +243,18 @@ async function loadAssignments() {
 
 async function create() {
   if (!canCreate.value) return
-  await $fetch('/api/assignments', { method: 'POST', body: { title: newTitle.value.trim(), assignedToId: assigneeId.value, dueDate: dueDate.value || undefined } })
+  const dueISO = (() => {
+    if (!dueDate.value) return undefined
+    if (dueTime.value) return `${dueDate.value}T${dueTime.value}`
+    return dueDate.value
+  })()
+  await $fetch('/api/assignments', { method: 'POST', body: { title: newTitle.value.trim(), assignedToId: assigneeId.value, dueDate: dueISO } })
   // Notify calendars to refresh
   try { window.dispatchEvent(new CustomEvent('assignment-created', { detail: { assignedToId: assigneeId.value } })) } catch {}
   newTitle.value = ''
   assigneeId.value = 0
   dueDate.value = ''
+  dueTime.value = ''
   await loadAssignments()
 }
 
@@ -263,7 +276,9 @@ function fmtDate(d?: string | null) {
   if (!d) return ''
   try {
     const dd = new Date(d)
-    return dd.toLocaleDateString()
+    const hasTime = dd.getHours() !== 0 || dd.getMinutes() !== 0 || dd.getSeconds() !== 0
+    if (!hasTime) return dd.toLocaleDateString()
+    return dd.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
   } catch { return '' }
 }
 </script>
