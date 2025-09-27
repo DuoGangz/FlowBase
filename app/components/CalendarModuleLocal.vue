@@ -9,27 +9,48 @@
       <button class="text-sm text-red-600" @click="$emit('remove')">Remove</button>
     </div>
 
-    <div class="flex items-center gap-2">
-      <button class="px-2 py-1 border rounded-md" @click="prevMonth">&lt;</button>
-      <div class="font-medium">{{ monthLabel }}</div>
-      <button class="px-2 py-1 border rounded-md" @click="nextMonth">&gt;</button>
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <button class="px-2 py-1 border rounded-md" @click="goPrev">&lt;</button>
+        <div class="font-medium">{{ headerLabel }}</div>
+        <button class="px-2 py-1 border rounded-md" @click="goNext">&gt;</button>
+      </div>
+      <div class="flex items-center gap-1">
+        <button :class="viewButtonClass('month')" @click="setView('month')">Month</button>
+        <button :class="viewButtonClass('week')" @click="setView('week')">Week</button>
+        <button :class="viewButtonClass('day')" @click="setView('day')">Day</button>
+      </div>
     </div>
 
-    <div class="grid grid-cols-7 gap-1 text-center select-none">
+    <div v-if="viewMode !== 'day'" class="grid grid-cols-7 gap-1 text-center select-none">
       <div class="text-xs text-gray-500" v-for="d in daysShort" :key="d">{{ d }}</div>
       <div
-        v-for="day in gridDays"
+        v-for="day in visibleDays"
         :key="day.key"
-        class="h-14 flex flex-col items-center justify-start rounded-md p-1 text-xs"
-        :class="day.inMonth ? 'bg-gray-50' : 'bg-white text-gray-400'"
+        class="h-14 flex flex-col items-center justify-start rounded-md p-1 text-xs cursor-pointer"
+        :class="[
+          day.inMonth ? 'bg-gray-50' : 'bg-white text-gray-400',
+          isSameDay(day.date, selectedDate) ? 'ring-2 ring-blue-500' : ''
+        ]"
+        @click="onSelectDay(day.date)"
       >
-        <div class="font-medium">{{ day.date.getDate() }}</div>
-        <ul class="mt-1 space-y-0.5 w-full">
-          <li v-for="e in eventsByDay(day.date)" :key="e.id" class="truncate text-[10px] leading-tight text-left">
-            • {{ e.title }}
-          </li>
-        </ul>
+        <div class="w-full flex items-center justify-between">
+          <div class="font-medium">{{ day.date.getDate() }}</div>
+          <div v-if="eventsByDay(day.date).length" class="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center">
+            {{ eventsByDay(day.date).length }}
+          </div>
+        </div>
       </div>
+    </div>
+
+    <div v-else class="space-y-2 select-none">
+      <div class="text-sm text-gray-600">{{ dayHeaderLabel }}</div>
+      <ul class="space-y-1">
+        <li v-for="e in eventsByDay(selectedDate)" :key="e.id" class="text-sm">
+          {{ e.title }}
+        </li>
+        <li v-if="!eventsByDay(selectedDate).length" class="text-sm text-gray-500">No items scheduled</li>
+      </ul>
     </div>
 
     <div
@@ -101,7 +122,34 @@ const wrapperClass = computed(() => [
 
 const daysShort = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 const viewDate = ref(new Date())
+const selectedDate = ref(new Date())
+const viewMode = ref<'month' | 'week' | 'day'>('month')
+
 const monthLabel = computed(() => viewDate.value.toLocaleString(undefined, { month: 'long', year: 'numeric' }))
+function startOfWeek(d: Date) {
+  const s = new Date(d)
+  s.setHours(0,0,0,0)
+  s.setDate(s.getDate() - s.getDay())
+  return s
+}
+function endOfWeek(d: Date) {
+  const e = startOfWeek(d)
+  e.setDate(e.getDate() + 6)
+  return e
+}
+const headerLabel = computed(() => {
+  if (viewMode.value === 'month') return monthLabel.value
+  if (viewMode.value === 'week') {
+    const s = startOfWeek(viewDate.value)
+    const e = endOfWeek(viewDate.value)
+    const sLabel = s.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+    const eLabel = e.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: s.getFullYear() === e.getFullYear() ? 'numeric' : 'numeric' })
+    return `${sLabel} – ${eLabel}`
+  }
+  return selectedDate.value.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+})
+const dayHeaderLabel = computed(() => selectedDate.value.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }))
+
 const gridDays = computed<GridDay[]>(() => {
   const first = new Date(viewDate.value.getFullYear(), viewDate.value.getMonth(), 1)
   const start = new Date(first)
@@ -115,12 +163,72 @@ const gridDays = computed<GridDay[]>(() => {
   return days
 })
 
-function prevMonth() {
-  viewDate.value = new Date(viewDate.value.getFullYear(), viewDate.value.getMonth() - 1, 1)
+const weekDays = computed<GridDay[]>(() => {
+  const start = startOfWeek(viewDate.value)
+  const days: GridDay[] = []
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start)
+    d.setDate(start.getDate() + i)
+    days.push({ date: d, inMonth: d.getMonth() === viewDate.value.getMonth(), key: d.toISOString() })
+  }
+  return days
+})
+const visibleDays = computed(() => viewMode.value === 'week' ? weekDays.value : gridDays.value)
+
+function isSameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 }
-function nextMonth() {
-  viewDate.value = new Date(viewDate.value.getFullYear(), viewDate.value.getMonth() + 1, 1)
+function onSelectDay(d: Date) {
+  selectedDate.value = new Date(d)
 }
+
+function setView(mode: 'month' | 'week' | 'day') {
+  viewMode.value = mode
+  if (mode === 'day') {
+    selectedDate.value = new Date(viewDate.value)
+  } else if (mode === 'week') {
+    // align viewDate to current selectedDate's week for better UX
+    viewDate.value = new Date(selectedDate.value)
+  }
+}
+
+function viewButtonClass(mode: 'month' | 'week' | 'day') {
+  return [
+    'px-2 py-1 border rounded-md',
+    viewMode.value === mode ? 'bg-black text-white' : 'bg-white'
+  ]
+}
+
+function goPrev() {
+  if (viewMode.value === 'month') {
+    viewDate.value = new Date(viewDate.value.getFullYear(), viewDate.value.getMonth() - 1, 1)
+  } else if (viewMode.value === 'week') {
+    const d = new Date(viewDate.value)
+    d.setDate(d.getDate() - 7)
+    viewDate.value = d
+  } else {
+    const d = new Date(selectedDate.value)
+    d.setDate(d.getDate() - 1)
+    selectedDate.value = d
+    viewDate.value = d
+  }
+}
+function goNext() {
+  if (viewMode.value === 'month') {
+    viewDate.value = new Date(viewDate.value.getFullYear(), viewDate.value.getMonth() + 1, 1)
+  } else if (viewMode.value === 'week') {
+    const d = new Date(viewDate.value)
+    d.setDate(d.getDate() + 7)
+    viewDate.value = d
+  } else {
+    const d = new Date(selectedDate.value)
+    d.setDate(d.getDate() + 1)
+    selectedDate.value = d
+    viewDate.value = d
+  }
+}
+
+// prev/next are handled by goPrev/goNext now
 
 function onMouseMove(e: MouseEvent) {
   if (dragState.dragging) {
