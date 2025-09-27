@@ -6,7 +6,10 @@
   >
     <div class="space-y-2 relative pb-10">
     <div class="flex flex-wrap items-end justify-between gap-2">
-      <h3 class="font-medium mr-2">Assignments</h3>
+      <div class="flex items-center gap-2">
+        <button class="text-sm text-red-600" @click="$emit('remove')">Remove</button>
+        <h3 class="font-medium mr-2">Assignments</h3>
+      </div>
       <div class="flex flex-wrap items-end gap-2 w-full md:w-auto pr-24">
         <div v-if="canAssign" class="order-3 md:order-2 flex flex-wrap items-end gap-2 flex-1 min-w-[260px]">
           <div class="flex items-end gap-2 flex-1 min-w-[420px] flex-nowrap">
@@ -30,13 +33,6 @@
           </div>
         </div>
         
-        <!-- Top-right compact toggle -->
-        <div v-if="canAssign" class="absolute top-1 right-2">
-          <div class="inline-flex border rounded-full overflow-hidden shadow bg-white transform origin-top-right scale-[0.6] pointer-events-auto">
-            <button class="px-3 h-8 text-sm" :class="viewMode==='me' ? 'bg-black text-white' : 'bg-white'" @click="viewMode='me'">Assigned to me</button>
-            <button class="px-3 h-8 text-sm" :class="viewMode==='authored' ? 'bg-black text-white' : 'bg-white'" @click="viewMode='authored'">Assignments</button>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -79,7 +75,13 @@
       </ul>
     </div>
 
-    
+    <!-- Bottom-left toggle -->
+    <div v-if="canAssign" class="absolute bottom-1 left-2">
+      <div class="inline-flex border rounded-full overflow-hidden shadow bg-white pointer-events-auto">
+        <button class="px-3 h-8 text-sm" :class="viewMode==='me' ? 'bg-black text-white' : 'bg-white'" @click="viewMode='me'">Assigned to me</button>
+        <button class="px-3 h-8 text-sm" :class="viewMode==='authored' ? 'bg-black text-white' : 'bg-white'" @click="viewMode='authored'">Assignments</button>
+      </div>
+    </div>
 
     </div>
 
