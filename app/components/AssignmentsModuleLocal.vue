@@ -20,9 +20,12 @@
               </select>
             </div>
           </div>
-          <!-- Row 2: date + time on left, recurring + assign on right -->
-          <div class="flex items-end gap-2 flex-wrap justify-between">
-            <div class="flex items-end gap-2">
+          <!-- Row 2: Assign button on far left; Date, Time, Recurring follow on same row -->
+          <div class="flex items-end gap-2 flex-wrap">
+            <div class="w-28 order-1">
+              <button class="px-3 h-8 text-sm border rounded w-full" :disabled="!canCreate" @click="create">Assign</button>
+            </div>
+            <div class="flex items-end gap-2 order-2">
               <div class="flex flex-col">
                 <label class="text-[10px] leading-none uppercase tracking-wide text-gray-500 mb-1">Date</label>
                 <input type="date" v-model="dueDate" class="border rounded px-2 h-8 text-sm" />
@@ -32,20 +35,15 @@
                 <input type="time" v-model="dueTime" class="border rounded px-2 h-8 text-sm w-[110px]" />
               </div>
             </div>
-            <div class="flex items-end gap-2 ml-auto">
-              <div class="flex flex-col">
-                <label class="text-[10px] leading-none uppercase tracking-wide text-gray-500 mb-1">Recurring</label>
-                <select v-model="recurrence" class="border rounded px-2 h-8 text-sm min-w-[130px]">
-                  <option value="">One-time</option>
-                  <option value="DAILY">Daily</option>
-                  <option value="WEEKLY">Weekly</option>
-                  <option value="BI_WEEKLY">Bi-Weekly</option>
-                  <option value="MONTHLY">Monthly</option>
-                </select>
-              </div>
-              <div class="w-28">
-                <button class="px-3 h-8 text-sm border rounded w-full" :disabled="!canCreate" @click="create">Assign</button>
-              </div>
+            <div class="flex flex-col order-3">
+              <label class="text-[10px] leading-none uppercase tracking-wide text-gray-500 mb-1">Recurring</label>
+              <select v-model="recurrence" class="border rounded px-2 h-8 text-sm min-w-[130px]">
+                <option value="">One-time</option>
+                <option value="DAILY">Daily</option>
+                <option value="WEEKLY">Weekly</option>
+                <option value="BI_WEEKLY">Bi-Weekly</option>
+                <option value="MONTHLY">Monthly</option>
+              </select>
             </div>
           </div>
         </div>
