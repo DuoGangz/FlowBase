@@ -8,7 +8,8 @@
     <div class="flex flex-wrap items-end justify-between gap-2 pr-14">
       <h3 class="font-medium mr-2">Assignments</h3>
       <div class="flex flex-wrap items-end gap-2 w-full md:w-auto order-3 md:order-2">
-        <div v-if="canAssign" class="order-3 md:order-2 flex flex-wrap items-end gap-2 flex-1 min-w-[260px]">
+        <div v-if="canAssign" class="order-3 md:order-2 flex flex-col gap-2 flex-1 min-w-[260px]">
+          <!-- Row 1: title + employee -->
           <div class="flex items-end gap-2 flex-1 min-w-[320px] flex-wrap md:flex-nowrap">
             <input v-model="newTitle" placeholder="New task" class="border rounded px-2 h-8 text-sm w-40 md:w-48 flex-1" />
             <div class="flex flex-col">
@@ -18,6 +19,9 @@
                 <option v-for="u in filteredUsers" :key="u.id" :value="u.id">{{ u.name }}</option>
               </select>
             </div>
+          </div>
+          <!-- Row 2: date + time on left, recurring + assign on right -->
+          <div class="flex items-end gap-2 flex-wrap justify-between">
             <div class="flex items-end gap-2">
               <div class="flex flex-col">
                 <label class="text-[10px] leading-none uppercase tracking-wide text-gray-500 mb-1">Date</label>
@@ -28,10 +32,20 @@
                 <input type="time" v-model="dueTime" class="border rounded px-2 h-8 text-sm w-[110px]" />
               </div>
             </div>
-          </div>
-          <div class="w-full flex justify-end mt-1">
-            <div class="w-28">
-              <button class="px-3 h-8 text-sm border rounded w-full" :disabled="!canCreate" @click="create">Assign</button>
+            <div class="flex items-end gap-2 ml-auto">
+              <div class="flex flex-col">
+                <label class="text-[10px] leading-none uppercase tracking-wide text-gray-500 mb-1">Recurring</label>
+                <select v-model="recurrence" class="border rounded px-2 h-8 text-sm min-w-[130px]">
+                  <option value="">One-time</option>
+                  <option value="DAILY">Daily</option>
+                  <option value="WEEKLY">Weekly</option>
+                  <option value="BI_WEEKLY">Bi-Weekly</option>
+                  <option value="MONTHLY">Monthly</option>
+                </select>
+              </div>
+              <div class="w-28">
+                <button class="px-3 h-8 text-sm border rounded w-full" :disabled="!canCreate" @click="create">Assign</button>
+              </div>
             </div>
           </div>
         </div>
@@ -218,6 +232,7 @@ const assigneeId = ref(0)
 const viewMode = ref<'me'|'authored'>('me')
 const dueDate = ref('')
 const dueTime = ref('')
+const recurrence = ref<'DAILY'|'WEEKLY'|'BI_WEEKLY'|'MONTHLY'|''>('')
 
 const canAssign = computed(() => me.value && (me.value.role === 'OWNER' || me.value.role === 'MANAGER' || me.value.role === 'ADMIN_MANAGER'))
 const canCreate = computed(() => canAssign.value && newTitle.value.trim() && assigneeId.value > 0)
@@ -250,13 +265,14 @@ async function create() {
     if (dueTime.value) return `${dueDate.value}T${dueTime.value}`
     return dueDate.value
   })()
-  await $fetch('/api/assignments', { method: 'POST', body: { title: newTitle.value.trim(), assignedToId: assigneeId.value, dueDate: dueISO } })
+  await $fetch('/api/assignments', { method: 'POST', body: { title: newTitle.value.trim(), assignedToId: assigneeId.value, dueDate: dueISO, recurrence: recurrence.value || undefined } })
   // Notify calendars to refresh
   try { window.dispatchEvent(new CustomEvent('assignment-created', { detail: { assignedToId: assigneeId.value } })) } catch {}
   newTitle.value = ''
   assigneeId.value = 0
   dueDate.value = ''
   dueTime.value = ''
+  recurrence.value = ''
   await loadAssignments()
 }
 
