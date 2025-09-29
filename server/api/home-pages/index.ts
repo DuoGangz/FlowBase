@@ -37,25 +37,41 @@ export default defineEventHandler(async (event) => {
   }
 
   if (method === 'POST') {
-    if (me.role !== 'OWNER' && me.role !== 'ADMIN') {
-      throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
-    }
     const body = await readBody<CreateBody>(event)
-    if (!body?.name) throw createError({ statusCode: 400, statusMessage: 'name is required' })
+    const name = (body?.name || '').trim()
+    if (!name) throw createError({ statusCode: 400, statusMessage: 'name is required' })
+
     // Limit to max 4 pages per account
     const count = await prisma.homePage.count({ where: { accountId: me.accountId } })
     if (count >= 4) throw createError({ statusCode: 400, statusMessage: 'Page limit reached (4)' })
-    if (body.isDefault) {
-      await prisma.homePage.updateMany({ where: { accountId: me.accountId, isDefault: true }, data: { isDefault: false } })
+
+    // OWNER/ADMIN: same behavior as before (can set default)
+    if (me.role === 'OWNER' || me.role === 'ADMIN') {
+      if (body.isDefault) {
+        await prisma.homePage.updateMany({ where: { accountId: me.accountId, isDefault: true }, data: { isDefault: false } })
+      }
+      const created = await prisma.homePage.create({
+        data: {
+          accountId: me.accountId,
+          name,
+          layout: body.layout ?? { modules: [] },
+          isDefault: body.isDefault ?? false
+        }
+      })
+      return created
     }
+
+    // Non-admin users: allow creating a personal page they can edit (not default)
     const created = await prisma.homePage.create({
       data: {
         accountId: me.accountId,
-        name: body.name,
+        name,
         layout: body.layout ?? { modules: [] },
-        isDefault: body.isDefault ?? false
+        isDefault: false
       }
     })
+    // Grant self-edit permission
+    await prisma.homePagePermission.create({ data: { homePageId: created.id, userId: me.id, canEdit: true } })
     return created
   }
 

@@ -304,7 +304,29 @@ async function saveLayout() {
   if (!currentPageId.value) return
   try {
     await $fetch(`/api/home-pages/${currentPageId.value}`, { method: 'PUT', body: { layout: { modules: modules.value } } })
-  } catch {}
+  } catch (e: any) {
+    const status = e?.status || e?.response?.status
+    if (status === 403) {
+      // Offer to create a personal page and move the current layout there
+      const proceed = confirm('You do not have permission to edit this page. Create a personal page and save your layout there?')
+      if (!proceed) return
+      try {
+        const created = await $fetch<{ id:number }>(`/api/home-pages`, { method: 'POST', body: { name: me.name ? me.name + "\u2019s Page" : 'My Page', layout: { modules: modules.value } } })
+        if (created?.id) {
+          currentPageId.value = created.id
+          await loadPages()
+          // No need to retry PUT; the layout was saved during creation
+          return
+        }
+      } catch (err) {
+        console.error('Failed to create personal page:', err)
+        alert('Failed to create personal page. Please try again or contact an administrator.')
+      }
+    } else {
+      console.error('Failed to save layout:', e)
+      alert('Failed to save layout. Please try again or contact an administrator.')
+    }
+  }
 }
 
 async function switchPage(id: number) {
