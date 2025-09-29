@@ -62,13 +62,15 @@ type Entry = {
 }
 
 const user = useUserStore()
+const meServer = ref<{ id:number } | null>(null)
+const userId = computed(() => meServer.value?.id ?? user.id)
 const title = ref('Time Clock')
 const entry = ref<Entry | null>(null)
 
 const todayLabel = computed(() => new Date().toLocaleDateString())
 
 async function fetchToday() {
-  const items = await $fetch<Entry[]>('/api/time-entries', { query: { userId: user.id } })
+  const items = await $fetch<Entry[]>('/api/time-entries', { query: { userId: userId.value } })
   const today = new Date()
   const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
   entry.value = items.find(it => new Date(it.date).getTime() === todayUtc) || null
@@ -83,12 +85,13 @@ async function record(action: 'clockIn' | 'lunchOut' | 'lunchIn' | 'clockOut') {
   const tzOffsetMinutes = new Date().getTimezoneOffset()
   const res = await $fetch<{ ok: boolean; entry: Entry }>(
     '/api/time-entries',
-    { method: 'POST', body: { userId: user.id, action, tzOffsetMinutes } }
+    { method: 'POST', body: { userId: userId.value, action, tzOffsetMinutes } }
   )
   entry.value = res.entry
 }
 
-onMounted(() => {
+onMounted(async () => {
+  try { meServer.value = await $fetch('/api/auth/me') } catch { meServer.value = null }
   fetchToday()
 })
 
