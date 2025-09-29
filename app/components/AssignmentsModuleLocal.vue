@@ -7,9 +7,10 @@
     <div class="space-y-2 relative">
     <div class="flex flex-wrap items-end justify-between gap-2">
       <h3 class="font-medium mr-2">Assignments</h3>
-      <div class="flex flex-wrap items-end gap-2 w-full md:w-auto">
+      <button class="text-sm text-red-600 order-2 md:order-3 ml-auto md:ml-0" @click="$emit('remove')">Remove</button>
+      <div class="flex flex-wrap items-end gap-2 w-full md:w-auto order-3 md:order-2">
         <div v-if="canAssign" class="order-3 md:order-2 flex flex-wrap items-end gap-2 flex-1 min-w-[260px]">
-          <div class="flex items-end gap-2 flex-1 min-w-[420px] flex-nowrap">
+          <div class="flex items-end gap-2 flex-1 min-w-[320px] flex-wrap md:flex-nowrap">
             <input v-model="newTitle" placeholder="New task" class="border rounded px-2 h-8 text-sm w-40 md:w-48 flex-1" />
             <div class="flex flex-col">
               <label class="text-[10px] leading-none uppercase tracking-wide text-gray-500 mb-1">Employee</label>
@@ -38,9 +39,7 @@
         
       </div>
     </div>
-    <div class="absolute top-1 right-2">
-      <button class="text-sm text-red-600" @click="$emit('remove')">Remove</button>
-    </div>
+    
 
     <div class="mt-1">
       <div v-if="!canAssign || viewMode==='me'" class="flex items-end justify-between mb-1">
