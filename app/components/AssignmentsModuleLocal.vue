@@ -42,7 +42,7 @@
                 <option value="MONTHLY">Monthly</option>
               </select>
             </div>
-            <div class="w-28 order-3 ml-auto">
+            <div class="w-28 order-3">
               <button class="px-3 h-8 text-sm border rounded w-full" :disabled="!canCreate" @click="create">Assign</button>
             </div>
           </div>
