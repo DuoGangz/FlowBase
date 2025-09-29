@@ -139,7 +139,9 @@ import { useUserStore } from '~~/stores/user'
 import BannerCropper from '~/components/BannerCropper.vue'
 import { useSnapGridStore, GRID } from '~~/stores/snapGrid'
 
-const modules = ref<{ key: string; type: 'todo' | 'calendar' | 'clock' | 'roadmap' | 'assignments' }[]>([])
+type ModuleType = 'todo' | 'calendar' | 'clock' | 'roadmap' | 'assignments'
+type ModuleLayout = { key: string; type: ModuleType; cell?: { col: number; row: number } }
+const modules = ref<ModuleLayout[]>([])
 const menuOpen = ref(false)
 const pageMenuOpen = ref(false)
 const pages = ref<{ id:number; name:string; isDefault:boolean }[]>([])
@@ -281,6 +283,7 @@ function addModule(type: 'todo' | 'calendar' | 'clock' | 'roadmap' | 'assignment
 }
 function removeModule(key: string) {
   modules.value = modules.value.filter(m => m.key !== key)
+  try { gridStore.release(key) } catch {}
   saveLayout()
 }
 
@@ -298,6 +301,14 @@ async function loadPages() {
 async function loadLayout(id: number) {
   const page = await $fetch<{ id:number; name:string; layout:any }>(`/api/home-pages/${id}`)
   modules.value = Array.isArray(page.layout?.modules) ? page.layout.modules : []
+  // restore grid cell positions if saved
+  nextTick(() => {
+    for (const mod of modules.value) {
+      if (mod.cell && typeof mod.cell.col === 'number' && typeof mod.cell.row === 'number') {
+        try { gridStore.placeAt(mod.key, mod.cell.col, mod.cell.row) } catch {}
+      }
+    }
+  })
 }
 
 async function saveLayout() {
@@ -328,6 +339,28 @@ async function saveLayout() {
     }
   }
 }
+
+// Keep module.cell in sync with current snapped grid state and persist (debounced)
+function debounce<T extends (...args: any[]) => void>(fn: T, ms: number) {
+  let t: any
+  return ((...args: any[]) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms) }) as T
+}
+const saveLayoutDebounced = debounce(saveLayout, 400)
+
+watch(() => gridStore.cells, (cells) => {
+  // Map store state to modules' saved cells
+  const map = cells as unknown as Record<string, { col:number; row:number }>
+  let changed = false
+  modules.value = modules.value.map(m => {
+    const c = map[m.key]
+    if (c && (!m.cell || m.cell.col !== c.col || m.cell.row !== c.row)) {
+      changed = true
+      return { ...m, cell: { col: c.col, row: c.row } }
+    }
+    return m
+  })
+  if (changed) saveLayoutDebounced()
+}, { deep: true })
 
 async function switchPage(id: number) {
   currentPageId.value = id

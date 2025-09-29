@@ -20,10 +20,8 @@ export default defineEventHandler(async (event) => {
       await prisma.homePage.create({ data: { accountId: me.accountId, name: 'Home', layout: { modules: [] }, isDefault: true } })
     }
 
-    if (me.role === 'OWNER' || me.role === 'ADMIN') {
-      return prisma.homePage.findMany({ where: { accountId: me.accountId }, orderBy: { createdAt: 'asc' } })
-    }
-
+    // Everyone sees: default page(s) and any pages they have explicit permission for,
+    // plus their own personal page if they created one.
     return prisma.homePage.findMany({
       where: {
         accountId: me.accountId,
