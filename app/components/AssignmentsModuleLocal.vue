@@ -5,9 +5,8 @@
     @mousedown="onWrapperMouseDown"
   >
     <div class="space-y-2 relative">
-    <div class="flex flex-wrap items-end justify-between gap-2">
+    <div class="flex flex-wrap items-end justify-between gap-2 pl-14">
       <h3 class="font-medium mr-2">Assignments</h3>
-      <button class="text-sm text-red-600 order-2 md:order-3 ml-auto md:ml-0" @click="$emit('remove')">Remove</button>
       <div class="flex flex-wrap items-end gap-2 w-full md:w-auto order-3 md:order-2">
         <div v-if="canAssign" class="order-3 md:order-2 flex flex-wrap items-end gap-2 flex-1 min-w-[260px]">
           <div class="flex items-end gap-2 flex-1 min-w-[320px] flex-wrap md:flex-nowrap">
@@ -40,6 +39,10 @@
       </div>
     </div>
     
+    <!-- Keep Remove pinned top-left like other modules -->
+    <div class="absolute top-1 left-2">
+      <button class="text-sm text-red-600" @click="$emit('remove')">Remove</button>
+    </div>
 
     <div class="mt-1">
       <div v-if="!canAssign || viewMode==='me'" class="flex items-end justify-between mb-1">
