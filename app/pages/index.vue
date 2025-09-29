@@ -144,7 +144,7 @@ type ModuleLayout = { key: string; type: ModuleType; cell?: { col: number; row: 
 const modules = ref<ModuleLayout[]>([])
 const menuOpen = ref(false)
 const pageMenuOpen = ref(false)
-const pages = ref<{ id:number; name:string; isDefault:boolean }[]>([])
+const pages = ref<{ id:number; name:string; isDefault:boolean; mine?: boolean }[]>([])
 const currentPageId = ref<number | null>(null)
 const showCreateModal = ref(false)
 const newPageName = ref('')
@@ -292,7 +292,8 @@ const canManagePages = computed(() => (meServer.value ? (meServer.value.role ===
 async function loadPages() {
   pages.value = await $fetch('/api/home-pages')
   if (!currentPageId.value) {
-    const def = pages.value.find(p => p.isDefault) || pages.value[0]
+    const personal = pages.value.find(p => p.mine)
+    const def = personal || pages.value.find(p => p.isDefault) || pages.value[0]
     if (def) currentPageId.value = def.id
   }
   if (currentPageId.value) await loadLayout(currentPageId.value)
