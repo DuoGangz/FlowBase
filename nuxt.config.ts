@@ -24,12 +24,9 @@ export default defineNuxtConfig({
     fbProjectId: process.env.FB_PROJECT_ID,
     fbClientEmail: process.env.FB_CLIENT_EMAIL,
     fbPrivateKey: process.env.FB_PRIVATE_KEY,
-    recaptchaProjectId: process.env.RECAPTCHA_PROJECT_ID,
-    recaptchaApiKey: process.env.RECAPTCHA_API_KEY,
     public: {
       fbApiKey: process.env.FB_API_KEY,
-      fbAuthDomain: process.env.FB_AUTH_DOMAIN,
-      recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY
+      fbAuthDomain: process.env.FB_AUTH_DOMAIN
     }
   }
 })
