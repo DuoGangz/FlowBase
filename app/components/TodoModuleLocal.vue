@@ -371,7 +371,20 @@ function onSubDropToEnd(parentIdx: number) {
 }
 
 function onSubDragEnd(parentIdx: number) {
-  // If a drop target didn't fire (e.g., dropped outside), reset state
+  // If a drop target didn't fire, finalize using the last hovered index or push to end
+  if (dndState.type === 'sub' && dndState.parentIdx === parentIdx && dndState.subIdx !== undefined) {
+    const parent = items.value[parentIdx]
+    const arr = (parent.subItems ?? [])
+    if (dndState.subIdx >= 0 && dndState.subIdx < arr.length) {
+      const copy = arr.slice()
+      const [moved] = copy.splice(dndState.subIdx, 1)
+      const target = (dragOverParentIdx.value === parentIdx && dragOverSubIdx.value != null)
+        ? Math.max(0, Math.min(copy.length, dragOverSubIdx.value))
+        : copy.length
+      copy.splice(target, 0, moved)
+      parent.subItems = copy
+    }
+  }
   dragOverParentIdx.value = null
   dragOverSubIdx.value = null
   dndState.type = null
