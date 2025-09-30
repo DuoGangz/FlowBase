@@ -21,9 +21,9 @@
     <ul class="space-y-2">
       <li
         v-for="(it, idx) in items"
-        :key="it.id ?? idx"
+        :key="it?.id ?? idx"
         class="space-y-1"
-        v-if="view==='inprogress' ? !it.done : it.done"
+        v-if="(view==='inprogress' ? !Boolean(it?.done) : Boolean(it?.done))"
         draggable="true"
         @dragstart="onItemDragStart(idx, $event)"
         @dragover.prevent="onItemDragOver(idx)"
@@ -32,8 +32,8 @@
         :class="{ 'bg-gray-50 rounded': dragOverItemIdx===idx }"
       >
         <div class="flex items-center gap-2">
-          <input type="checkbox" v-model="it.done" />
-          <span :class="{ 'line-through text-gray-500': it.done }">{{ it.content }}</span>
+          <input type="checkbox" :checked="Boolean(it?.done)" @change="(e:any)=>toggleItemCheckedLocal(idx, e?.target?.checked)" />
+          <span :class="{ 'line-through text-gray-500': Boolean(it?.done) }">{{ it?.content ?? '' }}</span>
           <div class="ml-auto inline-flex gap-1">
             <button class="px-2 py-0.5 border rounded text-xs" @click="moveItem(idx, -1)">↑</button>
             <button class="px-2 py-0.5 border rounded text-xs" @click="moveItem(idx, 1)">↓</button>
@@ -43,14 +43,14 @@
           <ul class="space-y-1">
             <li
               v-for="(sub, sIdx) in visibleSubItems(it)"
-              :key="sub.id ?? sIdx"
+              :key="sub?.id ?? sIdx"
               class="flex items-center gap-2 cursor-move"
               @mousedown.stop="onSubPointerDown(idx, sIdx, $event)"
               :ref="el => setSubRef(idx, sIdx, el as HTMLElement)"
               :class="{ 'bg-gray-50 rounded': pointerSub.active && pointerSub.parentIdx===idx && pointerSub.overIdx===sIdx }"
             >
-              <input type="checkbox" v-model="sub.done" />
-              <span :class="{ 'line-through text-gray-400': sub.done }">{{ sub.content }}</span>
+              <input type="checkbox" :checked="Boolean(sub?.done)" @change="(e:any)=>toggleSubItemCheckedLocal(idx, sIdx, e?.target?.checked)" />
+              <span :class="{ 'line-through text-gray-400': Boolean(sub?.done) }">{{ sub?.content ?? '' }}</span>
               <div class="ml-auto inline-flex gap-1">
                 <button class="px-2 py-0.5 border rounded text-xs" @click="moveSubItem(idx, sIdx, -1)">↑</button>
                 <button class="px-2 py-0.5 border rounded text-xs" @click="moveSubItem(idx, sIdx, 1)">↓</button>
@@ -287,6 +287,13 @@ function visibleSubItems(it: LocalItem) {
   return it.subItems ?? []
 }
 
+function toggleItemCheckedLocal(idx: number, checked: boolean) {
+  const it = items.value[idx]
+  if (!it) return
+  it.done = Boolean(checked)
+  saveLocal()
+}
+
 function addSubItem(idx: number) {
   const txt = subDraft[idx]
   if (!txt) return
@@ -295,6 +302,14 @@ function addSubItem(idx: number) {
   it.subItems.push({ id: Date.now() + Math.floor(Math.random()*1000), content: txt, done: false })
   subDraft[idx] = ''
   showSubForm[idx] = false
+  saveLocal()
+}
+
+function toggleSubItemCheckedLocal(idx: number, sIdx: number, checked: boolean) {
+  const it = items.value[idx]
+  const sub = it?.subItems?.[sIdx]
+  if (!sub) return
+  sub.done = Boolean(checked)
   saveLocal()
 }
 
