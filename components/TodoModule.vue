@@ -29,8 +29,8 @@
         :class="{ 'bg-gray-50 rounded': dragOverItemId===it.id }"
       >
         <div class="flex items-center gap-2">
-          <input type="checkbox" v-model="it.done" @change="toggleItem(it)" />
-          <span :class="{ 'line-through text-gray-500': it.done }">{{ it.content }}</span>
+          <input type="checkbox" :checked="Boolean(it?.done)" @change="(e:any)=>toggleItemChecked(it, e?.target?.checked)" />
+          <span :class="{ 'line-through text-gray-500': Boolean(it?.done) }">{{ it?.content ?? '' }}</span>
           <div class="ml-auto inline-flex gap-1">
             <button class="px-2 py-0.5 border rounded text-xs" @click="moveItem(it, -1)">↑</button>
             <button class="px-2 py-0.5 border rounded text-xs" @click="moveItem(it, 1)">↓</button>
@@ -48,8 +48,8 @@
               @drop.prevent="onSubDrop(it, sub)"
               :class="{ 'bg-gray-50 rounded': dragOverSubId===sub.id && dragOverParentId===it.id }"
             >
-              <input type="checkbox" v-model="sub.done" @change="toggleSubItem(sub)" />
-              <span :class="{ 'line-through text-gray-400': sub.done }">{{ sub.content }}</span>
+              <input type="checkbox" :checked="Boolean(sub?.done)" @change="(e:any)=>toggleSubItemChecked(sub, e?.target?.checked)" />
+              <span :class="{ 'line-through text-gray-400': Boolean(sub?.done) }">{{ sub?.content ?? '' }}</span>
               <div class="ml-auto inline-flex gap-1">
                 <button class="px-2 py-0.5 border rounded text-xs" @click="moveSubItem(it, sub, -1)">↑</button>
                 <button class="px-2 py-0.5 border rounded text-xs" @click="moveSubItem(it, sub, 1)">↓</button>
@@ -157,6 +157,12 @@ async function toggleItem(it: { id:number; done:boolean }) {
   await $fetch('/api/todo-items', { method: 'PUT', body: { id: it.id, done: it.done } })
 }
 
+async function toggleItemChecked(it: any, checked: boolean) {
+  if (!it || typeof it.id !== 'number') return
+  it.done = Boolean(checked)
+  await $fetch('/api/todo-items', { method: 'PUT', body: { id: it.id, done: it.done } })
+}
+
 function visibleSubItems(it: Item) {
   // Show all subtasks while parent is not done; after parent is done, they can be hidden
   // Requirement: "these will not disappear until the main task is complete"
@@ -186,6 +192,12 @@ async function addSubItem(it: Item) {
 }
 
 async function toggleSubItem(sub: SubItem) {
+  await $fetch('/api/todo-subitems', { method: 'PUT', body: { id: sub.id, done: sub.done } })
+}
+
+async function toggleSubItemChecked(sub: any, checked: boolean) {
+  if (!sub || typeof sub.id !== 'number') return
+  sub.done = Boolean(checked)
   await $fetch('/api/todo-subitems', { method: 'PUT', body: { id: sub.id, done: sub.done } })
 }
 
