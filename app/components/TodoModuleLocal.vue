@@ -291,6 +291,9 @@ function toggleItemCheckedLocal(idx: number, checked: boolean) {
   const it = items.value[idx]
   if (!it) return
   it.done = Boolean(checked)
+  // auto-switch list so the item disappears from current view
+  if (it.done && view.value === 'inprogress') view.value = 'completed'
+  if (!it.done && view.value === 'completed') view.value = 'inprogress'
   saveLocal()
 }
 
