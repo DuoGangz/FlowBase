@@ -19,8 +19,9 @@
     <ul class="space-y-2">
       <li
         v-for="it in filteredItems"
-        :key="it.id"
+        :key="it?.id ?? Math.random()"
         class="space-y-1"
+        v-if="isItemRenderable(it)"
         draggable="true"
         @dragstart="onItemDragStart(it)"
         @dragover.prevent="onItemDragOver(it)"
@@ -38,8 +39,8 @@
         <div class="pl-6 space-y-2" v-if="Array.isArray(it.subItems)">
           <ul class="space-y-1" v-if="Array.isArray(it.subItems)" @dragover.prevent @drop.prevent="onSubDropToEnd(it)">
             <li
-              v-for="sub in (visibleSubItems(it) || [])"
-              :key="sub.id"
+              v-for="sub in visibleSubItemsFiltered(it)"
+              :key="sub?.id ?? Math.random()"
               class="flex items-center gap-2"
               draggable="true"
               @dragstart="onSubDragStart(it, sub, $event)"
@@ -164,6 +165,12 @@ function visibleSubItems(it: Item) {
   if (it.done) return []
   return Array.isArray(it.subItems) ? it.subItems : []
 }
+
+function isItemRenderable(it: any) {
+  return it && typeof it === 'object' && 'done' in it && 'id' in it
+}
+
+const visibleSubItemsFiltered = (it: Item) => (visibleSubItems(it) || []).filter(s => s && typeof s === 'object')
 
 function toggleSubForm(it: Item) {
   showSubForm[it.id] = !showSubForm[it.id]
