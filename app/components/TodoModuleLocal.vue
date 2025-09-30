@@ -15,7 +15,7 @@
     <ul class="space-y-2">
       <li
         v-for="(it, idx) in items"
-        :key="idx"
+        :key="it.id ?? idx"
         class="space-y-1"
         draggable="true"
         @dragstart="onItemDragStart(idx)"
@@ -36,7 +36,7 @@
           <ul class="space-y-1">
             <li
               v-for="(sub, sIdx) in visibleSubItems(it)"
-              :key="sIdx"
+              :key="sub.id ?? sIdx"
               class="flex items-center gap-2"
               draggable="true"
               @dragstart="onSubDragStart(idx, sIdx)"
@@ -102,8 +102,8 @@ function applySnap() {
   position.y = px.y
 }
 const title = ref('Todo List')
-type LocalSub = { content:string; done:boolean }
-type LocalItem = { content:string; done:boolean; subItems?: LocalSub[] }
+type LocalSub = { id:number; content:string; done:boolean }
+type LocalItem = { id:number; content:string; done:boolean; subItems?: LocalSub[] }
 const items = ref<LocalItem[]>([])
 const newItem = ref('')
 const interactive = ref(true)
@@ -241,7 +241,7 @@ onBeforeUnmount(() => {
 
 function addItem() {
   if (!newItem.value) return
-  items.value.push({ content: newItem.value, done: false, subItems: [] })
+  items.value.push({ id: Date.now(), content: newItem.value, done: false, subItems: [] })
   newItem.value = ''
 }
 
@@ -255,7 +255,7 @@ function addSubItem(idx: number) {
   if (!txt) return
   const it = items.value[idx]
   if (!it.subItems) it.subItems = []
-  it.subItems.push({ content: txt, done: false })
+  it.subItems.push({ id: Date.now() + Math.floor(Math.random()*1000), content: txt, done: false })
   subDraft[idx] = ''
   showSubForm[idx] = false
 }
