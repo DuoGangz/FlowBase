@@ -33,7 +33,7 @@
           </div>
         </div>
         <div class="pl-6 space-y-2">
-          <ul class="space-y-1">
+          <ul class="space-y-1" @dragover.prevent @drop.prevent="onSubDropToEnd(idx)">
             <li
               v-for="(sub, sIdx) in visibleSubItems(it)"
               :key="sub.id ?? sIdx"
@@ -337,6 +337,20 @@ function onSubDrop(parentIdx: number, subIdx: number) {
   // If dropping below, account for removed index shift when target is after source
   const target = subIdx > dndState.subIdx ? subIdx - 1 : subIdx
   copy.splice(target, 0, moved)
+  parent.subItems = copy
+  dragOverParentIdx.value = null
+  dragOverSubIdx.value = null
+  dndState.type = null
+}
+
+function onSubDropToEnd(parentIdx: number) {
+  if (dndState.type !== 'sub' || dndState.parentIdx !== parentIdx || dndState.subIdx === undefined) return
+  const parent = items.value[parentIdx]
+  const arr = (parent.subItems ?? [])
+  if (dndState.subIdx < 0 || dndState.subIdx >= arr.length) return
+  const copy = arr.slice()
+  const [moved] = copy.splice(dndState.subIdx, 1)
+  copy.push(moved)
   parent.subItems = copy
   dragOverParentIdx.value = null
   dragOverSubIdx.value = null

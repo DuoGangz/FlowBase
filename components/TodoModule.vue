@@ -30,13 +30,13 @@
           </div>
         </div>
         <div class="pl-6 space-y-2">
-          <ul class="space-y-1">
+          <ul class="space-y-1" @dragover.prevent @drop.prevent="onSubDropToEnd(it)">
             <li
               v-for="sub in visibleSubItems(it)"
               :key="sub.id"
               class="flex items-center gap-2"
               draggable="true"
-              @dragstart="onSubDragStart(it, sub)"
+              @dragstart="onSubDragStart(it, sub, $event)"
               @dragover.prevent="onSubDragOver(it, sub)"
               @drop.prevent="onSubDrop(it, sub)"
               :class="{ 'bg-gray-50 rounded': dragOverSubId===sub.id && dragOverParentId===it.id }"
@@ -193,10 +193,11 @@ async function onItemDrop(it: Item) {
   await $fetch('/api/todo-items', { method: 'PUT', body: { order } })
 }
 
-function onSubDragStart(parent: Item, sub: SubItem) {
+function onSubDragStart(parent: Item, sub: SubItem, e?: DragEvent) {
   dragState.type = 'sub'
   dragState.parentId = parent.id
   dragState.subId = sub.id
+  try { e?.dataTransfer?.setData('text/plain', String(sub.id)) } catch {}
 }
 function onSubDragOver(parent: Item, sub: SubItem) {
   dragOverParentId.value = parent.id
@@ -211,7 +212,24 @@ async function onSubDrop(parent: Item, sub: SubItem) {
   if (fromIdx < 0 || toIdx < 0) return
   const copy = list.slice()
   const [moved] = copy.splice(fromIdx, 1)
-  copy.splice(toIdx, 0, moved)
+  const target = toIdx > fromIdx ? toIdx - 1 : toIdx
+  copy.splice(target, 0, moved)
+  parent.subItems = copy
+  dragOverParentId.value = null
+  dragOverSubId.value = null
+  dragState.type = null
+  const order = (parent.subItems ?? []).map((x, i) => ({ id: x.id, position: i }))
+  await $fetch('/api/todo-subitems', { method: 'PUT', body: { order } })
+}
+
+async function onSubDropToEnd(parent: Item) {
+  if (dragState.type !== 'sub' || dragState.parentId !== parent.id || dragState.subId === undefined) return
+  const list = parent.subItems ?? []
+  const fromIdx = list.findIndex(x => x.id === dragState.subId)
+  if (fromIdx < 0) return
+  const copy = list.slice()
+  const [moved] = copy.splice(fromIdx, 1)
+  copy.push(moved)
   parent.subItems = copy
   dragOverParentId.value = null
   dragOverSubId.value = null
