@@ -110,7 +110,7 @@ const showSubForm = reactive<Record<number, boolean>>({})
 const dragOverItemIdx = ref<number | null>(null)
 const dragOverParentIdx = ref<number | null>(null)
 const dragOverSubIdx = ref<number | null>(null)
-const dragState = reactive<{ type:'item'|'sub'|null; itemIdx?:number; parentIdx?:number; subIdx?:number }>({ type: null })
+const dndState = reactive<{ type:'item'|'sub'|null; itemIdx?:number; parentIdx?:number; subIdx?:number }>({ type: null })
 
 // drag + resize state
 const position = reactive({ x: 0, y: 0 })
@@ -276,43 +276,43 @@ function moveSubItem(parentIdx: number, subIdx: number, dir: 1 | -1) {
 }
 
 function onItemDragStart(idx: number) {
-  dragState.type = 'item'
-  dragState.itemIdx = idx
+  dndState.type = 'item'
+  dndState.itemIdx = idx
 }
 function onItemDragOver(idx: number) {
   dragOverItemIdx.value = idx
 }
 function onItemDrop(idx: number) {
-  if (dragState.type !== 'item' || dragState.itemIdx === undefined) return
-  if (dragState.itemIdx === idx) return
+  if (dndState.type !== 'item' || dndState.itemIdx === undefined) return
+  if (dndState.itemIdx === idx) return
   const copy = items.value.slice()
-  const [moved] = copy.splice(dragState.itemIdx, 1)
+  const [moved] = copy.splice(dndState.itemIdx, 1)
   copy.splice(idx, 0, moved)
   items.value = copy
   dragOverItemIdx.value = null
-  dragState.type = null
+  dndState.type = null
 }
 
 function onSubDragStart(parentIdx: number, subIdx: number) {
-  dragState.type = 'sub'
-  dragState.parentIdx = parentIdx
-  dragState.subIdx = subIdx
+  dndState.type = 'sub'
+  dndState.parentIdx = parentIdx
+  dndState.subIdx = subIdx
 }
 function onSubDragOver(parentIdx: number, subIdx: number) {
   dragOverParentIdx.value = parentIdx
   dragOverSubIdx.value = subIdx
 }
 function onSubDrop(parentIdx: number, subIdx: number) {
-  if (dragState.type !== 'sub' || dragState.parentIdx !== parentIdx || dragState.subIdx === undefined) return
-  if (dragState.subIdx === subIdx) return
+  if (dndState.type !== 'sub' || dndState.parentIdx !== parentIdx || dndState.subIdx === undefined) return
+  if (dndState.subIdx === subIdx) return
   const parent = items.value[parentIdx]
   const arr = (parent.subItems ?? []).slice()
-  const [moved] = arr.splice(dragState.subIdx, 1)
+  const [moved] = arr.splice(dndState.subIdx, 1)
   arr.splice(subIdx, 0, moved)
   parent.subItems = arr
   dragOverParentIdx.value = null
   dragOverSubIdx.value = null
-  dragState.type = null
+  dndState.type = null
 }
 </script>
 
