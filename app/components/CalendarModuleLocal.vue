@@ -57,9 +57,9 @@
         </div>
         <div class="max-h-72 overflow-y-auto">
           <ul>
-            <li v-for="slot in daySlots" :key="slot.key" class="border-b last:border-b-0">
+            <li v-for="slot in daySlots" :key="slot.key" :class="['border-b last:border-b-0', slot.minute === 0 ? 'border-gray-300' : 'border-gray-100']">
               <div class="flex items-start">
-                <div class="w-16 shrink-0 text-right pr-2 pt-2 text-xs text-gray-500">{{ slot.label }}</div>
+                <div class="w-16 shrink-0 text-right pr-2 pt-2 text-xs text-gray-500">{{ slot.minute === 0 ? slot.hourLabel : '' }}</div>
                 <div class="flex-1 py-2">
                   <ul v-if="eventsBySlot(selectedDate, slot.hour, slot.minute).length" class="space-y-1">
                     <li v-for="e in eventsBySlot(selectedDate, slot.hour, slot.minute)" :key="e.id" class="text-sm flex items-center gap-2">
@@ -264,7 +264,7 @@ function formatTime12h(dt: Date) {
 // Day view helpers
 const daySlots = computed(() => {
   // 24 hours x 4 (15-minute) slots
-  const slots: { hour:number; minute:number; label:string; key:string }[] = []
+  const slots: { hour:number; minute:number; label:string; hourLabel:string; key:string }[] = []
   for (let h = 0; h < 24; h++) {
     for (let m = 0; m < 60; m += 15) {
       const dt = new Date()
@@ -273,6 +273,7 @@ const daySlots = computed(() => {
         hour: h,
         minute: m,
         label: dt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true }),
+        hourLabel: dt.toLocaleTimeString(undefined, { hour: 'numeric', hour12: true }),
         key: `s-${h}-${m}`
       })
     }
