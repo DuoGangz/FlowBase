@@ -45,13 +45,39 @@
 
     <div v-else class="space-y-2 select-none">
       <div class="text-sm text-gray-600">{{ dayHeaderLabel }}</div>
-      <ul class="space-y-1">
-        <li v-for="e in eventsByDaySorted(selectedDate)" :key="e.id" class="text-sm flex items-center gap-2">
-          <span class="inline-block w-14 text-gray-600">{{ formatTime12h(e.at) }}</span>
-          <span>{{ e.title }}</span>
-        </li>
-        <li v-if="!eventsByDay(selectedDate).length" class="text-sm text-gray-500">No items scheduled</li>
-      </ul>
+      <div class="border rounded-md overflow-hidden">
+        <div v-if="unassignedEvents(selectedDate).length" class="bg-yellow-50 border-b px-3 py-2">
+          <div class="text-xs font-medium text-gray-700">Time Unassigned</div>
+          <ul class="mt-1 space-y-1">
+            <li v-for="e in unassignedEvents(selectedDate)" :key="'u-'+e.id" class="text-sm flex items-center gap-2">
+              <span class="inline-block w-14 text-gray-400">--:--</span>
+              <span>{{ e.title }}</span>
+            </li>
+          </ul>
+        </div>
+        <div class="max-h-72 overflow-y-auto">
+          <ul>
+            <li v-for="hour in dayHours" :key="hour.key" class="border-b last:border-b-0">
+              <div class="flex items-start">
+                <div class="w-16 shrink-0 text-right pr-2 pt-2 text-xs text-gray-500">{{ hour.label }}</div>
+                <div class="flex-1 py-2">
+                  <template v-if="eventsByHour(selectedDate, hour.hour).length">
+                    <ul class="space-y-1">
+                      <li v-for="e in eventsByHour(selectedDate, hour.hour)" :key="e.id" class="text-sm flex items-center gap-2">
+                        <span class="inline-block w-14 text-gray-600">{{ formatTime12h(e.at) }}</span>
+                        <span>{{ e.title }}</span>
+                      </li>
+                    </ul>
+                  </template>
+                  <template v-else>
+                    <div class="text-xs text-gray-400">No items</div>
+                  </template>
+                </div>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
 
     <div
@@ -238,6 +264,32 @@ function formatTime12h(dt: Date) {
   } catch {
     return ''
   }
+}
+
+// Day view helpers
+const dayHours = computed(() => {
+  // Full 24-hour span from 12 AM (0) to 11 PM (23)
+  const hours: { hour:number; label:string; key:string }[] = []
+  for (let h = 0; h < 24; h++) {
+    const dt = new Date()
+    dt.setHours(h, 0, 0, 0)
+    hours.push({
+      hour: h,
+      label: dt.toLocaleTimeString(undefined, { hour: 'numeric', hour12: true }),
+      key: `h-${h}`
+    })
+  }
+  return hours
+})
+
+function eventsByHour(d: Date, hour: number) {
+  return eventsByDaySorted(d).filter(e => e.at.getHours() === hour)
+}
+
+function unassignedEvents(d: Date) {
+  // If server provides date-only strings, they will parse to 00:00.
+  // Treat items exactly at midnight as "unassigned time".
+  return eventsByDaySorted(d).filter(e => e.at.getHours() === 0 && e.at.getMinutes() === 0)
 }
 
 // prev/next are handled by goPrev/goNext now
