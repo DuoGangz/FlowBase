@@ -18,7 +18,7 @@
         :key="it.id ?? idx"
         class="space-y-1"
         draggable="true"
-        @dragstart="onItemDragStart(idx)"
+        @dragstart="onItemDragStart(idx, $event)"
         @dragover.prevent="onItemDragOver(idx)"
         @drop.prevent="onItemDrop(idx)"
         @mousedown.stop
@@ -39,7 +39,7 @@
               :key="sub.id ?? sIdx"
               class="flex items-center gap-2"
               draggable="true"
-              @dragstart="onSubDragStart(idx, sIdx)"
+              @dragstart="onSubDragStart(idx, sIdx, $event)"
               @dragover.prevent="onSubDragOver(idx, sIdx)"
               @drop.prevent="onSubDrop(idx, sIdx)"
               @mousedown.stop
@@ -284,10 +284,12 @@ function moveSubItem(parentIdx: number, subIdx: number, dir: 1 | -1) {
   parent.subItems = arr
 }
 
-function onItemDragStart(idx: number) {
+function onItemDragStart(idx: number, e: DragEvent) {
   dndState.type = 'item'
   dndState.itemIdx = idx
   cancelWrapperPotentialDrag()
+  // Improve DnD fidelity in some browsers
+  try { e.dataTransfer?.setData('text/plain', String(idx)) } catch {}
 }
 function onItemDragOver(idx: number) {
   dragOverItemIdx.value = idx
@@ -303,11 +305,12 @@ function onItemDrop(idx: number) {
   dndState.type = null
 }
 
-function onSubDragStart(parentIdx: number, subIdx: number) {
+function onSubDragStart(parentIdx: number, subIdx: number, e: DragEvent) {
   dndState.type = 'sub'
   dndState.parentIdx = parentIdx
   dndState.subIdx = subIdx
   cancelWrapperPotentialDrag()
+  try { e.dataTransfer?.setData('text/plain', `${parentIdx}:${subIdx}`) } catch {}
 }
 function onSubDragOver(parentIdx: number, subIdx: number) {
   dragOverParentIdx.value = parentIdx
@@ -315,12 +318,26 @@ function onSubDragOver(parentIdx: number, subIdx: number) {
 }
 function onSubDrop(parentIdx: number, subIdx: number) {
   if (dndState.type !== 'sub' || dndState.parentIdx !== parentIdx || dndState.subIdx === undefined) return
-  if (dndState.subIdx === subIdx) return
+  if (dndState.subIdx === subIdx) {
+    dragOverParentIdx.value = null
+    dragOverSubIdx.value = null
+    dndState.type = null
+    return
+  }
   const parent = items.value[parentIdx]
-  const arr = (parent.subItems ?? []).slice()
-  const [moved] = arr.splice(dndState.subIdx, 1)
-  arr.splice(subIdx, 0, moved)
-  parent.subItems = arr
+  const arr = (parent.subItems ?? [])
+  if (dndState.subIdx < 0 || dndState.subIdx >= arr.length || subIdx < 0 || subIdx >= arr.length) {
+    dragOverParentIdx.value = null
+    dragOverSubIdx.value = null
+    dndState.type = null
+    return
+  }
+  const copy = arr.slice()
+  const [moved] = copy.splice(dndState.subIdx, 1)
+  // If dropping below, account for removed index shift when target is after source
+  const target = subIdx > dndState.subIdx ? subIdx - 1 : subIdx
+  copy.splice(target, 0, moved)
+  parent.subItems = copy
   dragOverParentIdx.value = null
   dragOverSubIdx.value = null
   dndState.type = null
