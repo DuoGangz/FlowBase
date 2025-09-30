@@ -42,6 +42,7 @@
               @dragstart="onSubDragStart(idx, sIdx, $event)"
               @dragover.prevent="onSubDragOver(idx, sIdx)"
               @drop.prevent="onSubDrop(idx, sIdx)"
+              @dragend="onSubDragEnd(idx)"
               @mousedown.stop
               :class="{ 'bg-gray-50 rounded': dragOverParentIdx===idx && dragOverSubIdx===sIdx }"
             >
@@ -335,8 +336,7 @@ function onSubDrop(parentIdx: number, subIdx: number) {
   const copy = arr.slice()
   const [moved] = copy.splice(dndState.subIdx, 1)
   // If dropping below, account for removed index shift when target is after source
-  const target = subIdx > dndState.subIdx ? subIdx - 1 : subIdx
-  copy.splice(target, 0, moved)
+  copy.splice(subIdx, 0, moved)
   parent.subItems = copy
   dragOverParentIdx.value = null
   dragOverSubIdx.value = null
@@ -352,6 +352,13 @@ function onSubDropToEnd(parentIdx: number) {
   const [moved] = copy.splice(dndState.subIdx, 1)
   copy.push(moved)
   parent.subItems = copy
+  dragOverParentIdx.value = null
+  dragOverSubIdx.value = null
+  dndState.type = null
+}
+
+function onSubDragEnd(parentIdx: number) {
+  // If a drop target didn't fire (e.g., dropped outside), reset state
   dragOverParentIdx.value = null
   dragOverSubIdx.value = null
   dndState.type = null
