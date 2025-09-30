@@ -14,12 +14,21 @@
           <input type="checkbox" v-model="it.done" />
           <span :class="{ 'line-through text-gray-500': it.done }">{{ it.content }}</span>
         </div>
-        <div class="pl-6">
-          <form class="flex gap-2" @submit.prevent="addSubItem(idx)">
+        <div class="pl-6 space-y-2">
+          <button
+            type="button"
+            class="w-6 h-6 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center"
+            :aria-label="showSubForm[idx] ? 'Hide subtask' : 'Add subtask'"
+            @click="toggleSubForm(idx)"
+            v-if="!it.done"
+          >
+            <span class="text-base leading-none">+</span>
+          </button>
+          <form v-if="showSubForm[idx] && !it.done" class="flex gap-2" @submit.prevent="addSubItem(idx)">
             <input v-model="subDraft[idx]" placeholder="Add subtask" class="border rounded px-2 py-1 flex-1" />
             <button class="border px-2 py-1 rounded">Add</button>
           </form>
-          <ul class="mt-1 space-y-1">
+          <ul class="space-y-1">
             <li v-for="(sub, sIdx) in visibleSubItems(it)" :key="sIdx" class="flex items-center gap-2">
               <input type="checkbox" v-model="sub.done" />
               <span :class="{ 'line-through text-gray-400': sub.done }">{{ sub.content }}</span>
@@ -38,6 +47,7 @@ type LocalItem = { content:string; done:boolean; subItems?: LocalSub[] }
 const items = ref<LocalItem[]>([])
 const newItem = ref('')
 const subDraft = reactive<Record<number, string>>({})
+const showSubForm = reactive<Record<number, boolean>>({})
 
 function addItem() {
   if (!newItem.value) return
@@ -57,6 +67,10 @@ function addSubItem(idx: number) {
   if (!it.subItems) it.subItems = []
   it.subItems.push({ content: txt, done: false })
   subDraft[idx] = ''
+}
+
+function toggleSubForm(idx: number) {
+  showSubForm[idx] = !showSubForm[idx]
 }
 </script>
 

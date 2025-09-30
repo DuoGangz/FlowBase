@@ -16,12 +16,21 @@
           <input type="checkbox" v-model="it.done" @change="toggleItem(it)" />
           <span :class="{ 'line-through text-gray-500': it.done }">{{ it.content }}</span>
         </div>
-        <div class="pl-6">
-          <form class="flex gap-2" @submit.prevent="addSubItem(it)">
+        <div class="pl-6 space-y-2">
+          <button
+            type="button"
+            class="w-6 h-6 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center"
+            :aria-label="showSubForm[it.id] ? 'Hide subtask' : 'Add subtask'"
+            @click="toggleSubForm(it)"
+            v-if="!it.done"
+          >
+            <span class="text-base leading-none">+</span>
+          </button>
+          <form v-if="showSubForm[it.id] && !it.done" class="flex gap-2" @submit.prevent="addSubItem(it)">
             <input v-model="subItemDraft[it.id]" placeholder="Add subtask" class="border rounded px-2 py-1 flex-1" />
             <button class="border px-2 py-1 rounded">Add</button>
           </form>
-          <ul class="mt-1 space-y-1">
+          <ul class="space-y-1">
             <li
               v-for="sub in visibleSubItems(it)"
               :key="sub.id"
@@ -48,6 +57,7 @@ const items = ref<Item[]>([])
 const newItem = ref('')
 const listId = ref<number | null>(props.listId ?? null)
 const subItemDraft = reactive<Record<number, string>>({})
+const showSubForm = reactive<Record<number, boolean>>({})
 
 onMounted(async () => {
   if (!listId.value) {
@@ -89,6 +99,10 @@ function visibleSubItems(it: Item) {
   // We interpret as: keep showing until parent done; once done, show none.
   if (it.done) return []
   return (it.subItems ?? [])
+}
+
+function toggleSubForm(it: Item) {
+  showSubForm[it.id] = !showSubForm[it.id]
 }
 
 async function addSubItem(it: Item) {
