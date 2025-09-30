@@ -33,19 +33,14 @@
           </div>
         </div>
         <div class="pl-6 space-y-2">
-          <ul class="space-y-1" @dragover.prevent="onSubListDragOver($event)" @dragenter.prevent @drop.prevent.stop="onSubDropToEnd(idx)">
+          <ul class="space-y-1">
             <li
               v-for="(sub, sIdx) in visibleSubItems(it)"
               :key="sub.id ?? sIdx"
-              class="flex items-center gap-2"
-              draggable="true"
-              @dragstart="onSubDragStart(idx, sIdx, $event)"
-              @dragenter.prevent="onSubDragEnter(idx, sIdx, $event)"
-              @dragover.prevent="onSubDragOver(idx, sIdx, $event)"
-              @drop.prevent="onSubDrop(idx, sIdx)"
-              @dragend="onSubDragEnd(idx)"
-              @mousedown.stop
-              :class="{ 'bg-gray-50 rounded': dragOverParentIdx===idx && dragOverSubIdx===sIdx }"
+              class="flex items-center gap-2 cursor-move"
+              @mousedown.stop="onSubPointerDown(idx, sIdx, $event)"
+              :ref="el => setSubRef(idx, sIdx, el as HTMLElement)"
+              :class="{ 'bg-gray-50 rounded': pointerSub.active && pointerSub.parentIdx===idx && pointerSub.overIdx===sIdx }"
             >
               <input type="checkbox" v-model="sub.done" />
               <span :class="{ 'line-through text-gray-400': sub.done }">{{ sub.content }}</span>
@@ -115,6 +110,17 @@ const dragOverItemIdx = ref<number | null>(null)
 const dragOverParentIdx = ref<number | null>(null)
 const dragOverSubIdx = ref<number | null>(null)
 const dndState = reactive<{ type:'item'|'sub'|null; itemIdx?:number; parentIdx?:number; subIdx?:number }>({ type: null })
+
+// Pointer-based DnD for subtasks (robust across browsers)
+const pointerSub = reactive<{ active:boolean; parentIdx:number|null; startIdx:number|null; overIdx:number|null; startY:number; ghost:HTMLElement|null }>(
+  { active:false, parentIdx:null, startIdx:null, overIdx:null, startY:0, ghost:null }
+)
+const subItemEls = new Map<string, HTMLElement>()
+function subKey(p:number, s:number) { return `${p}:${s}` }
+function setSubRef(p:number, s:number, el: HTMLElement | null) {
+  if (!el) { subItemEls.delete(subKey(p,s)); return }
+  subItemEls.set(subKey(p,s), el)
+}
 
 // drag + resize state
 const position = reactive({ x: 0, y: 0 })
@@ -388,6 +394,78 @@ function onSubDragEnd(parentIdx: number) {
   dragOverParentIdx.value = null
   dragOverSubIdx.value = null
   dndState.type = null
+}
+
+function onSubPointerDown(parentIdx: number, subIdx: number, e: MouseEvent) {
+  pointerSub.active = true
+  pointerSub.parentIdx = parentIdx
+  pointerSub.startIdx = subIdx
+  pointerSub.overIdx = subIdx
+  pointerSub.startY = e.clientY
+  const el = subItemEls.get(subKey(parentIdx, subIdx))
+  if (el) {
+    const g = el.cloneNode(true) as HTMLElement
+    g.style.position = 'fixed'
+    g.style.pointerEvents = 'none'
+    g.style.opacity = '0.6'
+    const rect = el.getBoundingClientRect()
+    g.style.left = rect.left + 'px'
+    g.style.top = rect.top + 'px'
+    g.style.width = rect.width + 'px'
+    g.style.zIndex = '9999'
+    document.body.appendChild(g)
+    pointerSub.ghost = g
+  }
+  window.addEventListener('mousemove', onSubPointerMove)
+  window.addEventListener('mouseup', onSubPointerUp)
+}
+
+function onSubPointerMove(e: MouseEvent) {
+  if (!pointerSub.active || pointerSub.parentIdx === null || pointerSub.startIdx === null) return
+  // Move ghost
+  if (pointerSub.ghost) pointerSub.ghost.style.top = (e.clientY - 10) + 'px'
+  // Compute over index by measuring centers
+  const parent = items.value[pointerSub.parentIdx]
+  const subs = parent.subItems ?? []
+  let bestIdx = 0
+  let bestDist = Infinity
+  for (let i = 0; i < subs.length; i++) {
+    const el = subItemEls.get(subKey(pointerSub.parentIdx, i))
+    if (!el) continue
+    const r = el.getBoundingClientRect()
+    const centerY = r.top + r.height / 2
+    const d = Math.abs(e.clientY - centerY)
+    if (d < bestDist) { bestDist = d; bestIdx = i }
+  }
+  pointerSub.overIdx = bestIdx
+}
+
+function onSubPointerUp() {
+  if (!pointerSub.active || pointerSub.parentIdx === null || pointerSub.startIdx === null || pointerSub.overIdx === null) {
+    cleanupPointer()
+    return
+  }
+  const parent = items.value[pointerSub.parentIdx]
+  const subs = parent.subItems ?? []
+  const from = pointerSub.startIdx
+  let to = pointerSub.overIdx
+  if (from < 0 || from >= subs.length || to < 0 || to >= subs.length) { cleanupPointer(); return }
+  const arr = subs.slice()
+  const [moved] = arr.splice(from, 1)
+  arr.splice(to, 0, moved)
+  parent.subItems = arr
+  cleanupPointer()
+}
+
+function cleanupPointer() {
+  pointerSub.active = false
+  pointerSub.parentIdx = null
+  pointerSub.startIdx = null
+  pointerSub.overIdx = null
+  try { if (pointerSub.ghost && pointerSub.ghost.parentNode) pointerSub.ghost.parentNode.removeChild(pointerSub.ghost) } catch {}
+  pointerSub.ghost = null
+  window.removeEventListener('mousemove', onSubPointerMove)
+  window.removeEventListener('mouseup', onSubPointerUp)
 }
 </script>
 
