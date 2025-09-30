@@ -213,10 +213,29 @@ function cancelWrapperPotentialDrag() {
   }
 }
 
+// Local persistence (per-module) for home page version
+function storageKey() { return `todoLocal:${props.uid}` }
+function saveLocal() {
+  try {
+    const payload = JSON.stringify({ title: title.value, items: items.value })
+    localStorage.setItem(storageKey(), payload)
+  } catch {}
+}
+function loadLocal() {
+  try {
+    const raw = localStorage.getItem(storageKey())
+    if (!raw) return
+    const data = JSON.parse(raw)
+    if (typeof data?.title === 'string') title.value = data.title
+    if (Array.isArray(data?.items)) items.value = data.items
+  } catch {}
+}
+
 onMounted(() => {
   window.addEventListener('mousemove', onMouseMove)
   window.addEventListener('mouseup', onMouseUp)
   if (props.snap) applySnap()
+  loadLocal()
 })
 watch(() => props.snap, () => applySnap())
 
@@ -251,6 +270,7 @@ function addItem() {
   if (!newItem.value) return
   items.value.push({ id: Date.now(), content: newItem.value, done: false, subItems: [] })
   newItem.value = ''
+  saveLocal()
 }
 
 function visibleSubItems(it: LocalItem) {
@@ -266,6 +286,7 @@ function addSubItem(idx: number) {
   it.subItems.push({ id: Date.now() + Math.floor(Math.random()*1000), content: txt, done: false })
   subDraft[idx] = ''
   showSubForm[idx] = false
+  saveLocal()
 }
 
 function toggleSubForm(idx: number) {
@@ -279,6 +300,7 @@ function moveItem(idx: number, dir: 1 | -1) {
   const [moved] = copy.splice(idx, 1)
   copy.splice(target, 0, moved)
   items.value = copy
+  saveLocal()
 }
 
 function moveSubItem(parentIdx: number, subIdx: number, dir: 1 | -1) {
@@ -290,6 +312,7 @@ function moveSubItem(parentIdx: number, subIdx: number, dir: 1 | -1) {
   const [moved] = arr.splice(subIdx, 1)
   arr.splice(target, 0, moved)
   parent.subItems = arr
+  saveLocal()
 }
 
 function onItemDragStart(idx: number, e: DragEvent) {
@@ -311,6 +334,7 @@ function onItemDrop(idx: number) {
   items.value = copy
   dragOverItemIdx.value = null
   dndState.type = null
+  saveLocal()
 }
 
 function onSubDragStart(parentIdx: number, subIdx: number, e: DragEvent) {
@@ -360,6 +384,7 @@ function onSubDrop(parentIdx: number, subIdx: number) {
   dragOverParentIdx.value = null
   dragOverSubIdx.value = null
   dndState.type = null
+  saveLocal()
 }
 
 function onSubDropToEnd(parentIdx: number) {
@@ -374,6 +399,7 @@ function onSubDropToEnd(parentIdx: number) {
   dragOverParentIdx.value = null
   dragOverSubIdx.value = null
   dndState.type = null
+  saveLocal()
 }
 
 function onSubDragEnd(parentIdx: number) {
@@ -443,6 +469,7 @@ function cleanupPointer() {
   pointerSub.overIdx = null
   window.removeEventListener('mousemove', onSubPointerMove)
   window.removeEventListener('mouseup', onSubPointerUp)
+  saveLocal()
 }
 </script>
 
