@@ -33,7 +33,7 @@
           </div>
         </div>
         <div class="pl-6 space-y-2">
-          <ul class="space-y-1" @dragover.prevent="onSubListDragOver($event)" @dragenter.prevent @drop.prevent="onSubDropToEnd(idx)">
+          <ul class="space-y-1" @dragover.prevent="onSubListDragOver($event)" @dragenter.prevent @drop.prevent.stop="onSubDropToEnd(idx)">
             <li
               v-for="(sub, sIdx) in visibleSubItems(it)"
               :key="sub.id ?? sIdx"
@@ -315,20 +315,20 @@ function onSubDragStart(parentIdx: number, subIdx: number, e: DragEvent) {
   try { e.dataTransfer?.setData('text/plain', `${parentIdx}:${subIdx}`) } catch {}
 }
 function onSubListDragOver(e: DragEvent) {
-  // Required so drop on list end fires in some browsers
-  try { e.dataTransfer!.dropEffect = 'move' } catch {}
+  // Ensure the drop registers as a move action
+  try { if (e && e.dataTransfer) e.dataTransfer.dropEffect = 'move' } catch {}
 }
 
 function onSubDragEnter(parentIdx: number, subIdx: number, e: DragEvent) {
   dragOverParentIdx.value = parentIdx
   dragOverSubIdx.value = subIdx
-  try { e.dataTransfer!.dropEffect = 'move' } catch {}
+  try { if (e && e.dataTransfer) e.dataTransfer.dropEffect = 'move' } catch {}
 }
 
 function onSubDragOver(parentIdx: number, subIdx: number, e?: DragEvent) {
   dragOverParentIdx.value = parentIdx
   dragOverSubIdx.value = subIdx
-  try { e?.dataTransfer!.dropEffect = 'move' } catch {}
+  try { if (e && e.dataTransfer) e.dataTransfer.dropEffect = 'move' } catch {}
 }
 function onSubDrop(parentIdx: number, subIdx: number) {
   if (dndState.type !== 'sub' || dndState.parentIdx !== parentIdx || dndState.subIdx === undefined) return
