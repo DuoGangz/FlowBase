@@ -35,10 +35,10 @@
             <button class="px-2 py-0.5 border rounded text-xs" @click="moveItem(it, 1)">↓</button>
           </div>
         </div>
-        <div class="pl-6 space-y-2">
-          <ul class="space-y-1" @dragover.prevent @drop.prevent="onSubDropToEnd(it)">
+        <div class="pl-6 space-y-2" v-if="Array.isArray(it.subItems)">
+          <ul class="space-y-1" v-if="Array.isArray(it.subItems)" @dragover.prevent @drop.prevent="onSubDropToEnd(it)">
             <li
-              v-for="sub in visibleSubItems(it)"
+              v-for="sub in (visibleSubItems(it) || [])"
               :key="sub.id"
               class="flex items-center gap-2"
               draggable="true"
@@ -95,7 +95,8 @@ const dragOverParentId = ref<number | null>(null)
 const dragOverSubId = ref<number | null>(null)
 
 const filteredItems = computed(() => {
-  return items.value.filter(it => (view.value === 'inprogress' ? !it.done : it.done))
+  const arr = Array.isArray(items.value) ? items.value : []
+  return arr.filter((it: any) => it && (view.value === 'inprogress' ? !Boolean(it.done) : Boolean(it.done)))
 })
 
 onMounted(async () => {
@@ -159,8 +160,9 @@ function visibleSubItems(it: Item) {
   // Show all subtasks while parent is not done; after parent is done, they can be hidden
   // Requirement: "these will not disappear until the main task is complete"
   // We interpret as: keep showing until parent done; once done, show none.
+  if (!it || typeof it !== 'object') return []
   if (it.done) return []
-  return (it.subItems ?? [])
+  return Array.isArray(it.subItems) ? it.subItems : []
 }
 
 function toggleSubForm(it: Item) {
