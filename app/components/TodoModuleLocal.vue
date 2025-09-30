@@ -33,14 +33,15 @@
           </div>
         </div>
         <div class="pl-6 space-y-2">
-          <ul class="space-y-1" @dragover.prevent @drop.prevent="onSubDropToEnd(idx)">
+          <ul class="space-y-1" @dragover.prevent="onSubListDragOver($event)" @dragenter.prevent @drop.prevent="onSubDropToEnd(idx)">
             <li
               v-for="(sub, sIdx) in visibleSubItems(it)"
               :key="sub.id ?? sIdx"
               class="flex items-center gap-2"
               draggable="true"
               @dragstart="onSubDragStart(idx, sIdx, $event)"
-              @dragover.prevent="onSubDragOver(idx, sIdx)"
+              @dragenter.prevent="onSubDragEnter(idx, sIdx, $event)"
+              @dragover.prevent="onSubDragOver(idx, sIdx, $event)"
               @drop.prevent="onSubDrop(idx, sIdx)"
               @dragend="onSubDragEnd(idx)"
               @mousedown.stop
@@ -313,9 +314,21 @@ function onSubDragStart(parentIdx: number, subIdx: number, e: DragEvent) {
   cancelWrapperPotentialDrag()
   try { e.dataTransfer?.setData('text/plain', `${parentIdx}:${subIdx}`) } catch {}
 }
-function onSubDragOver(parentIdx: number, subIdx: number) {
+function onSubListDragOver(e: DragEvent) {
+  // Required so drop on list end fires in some browsers
+  try { e.dataTransfer!.dropEffect = 'move' } catch {}
+}
+
+function onSubDragEnter(parentIdx: number, subIdx: number, e: DragEvent) {
   dragOverParentIdx.value = parentIdx
   dragOverSubIdx.value = subIdx
+  try { e.dataTransfer!.dropEffect = 'move' } catch {}
+}
+
+function onSubDragOver(parentIdx: number, subIdx: number, e?: DragEvent) {
+  dragOverParentIdx.value = parentIdx
+  dragOverSubIdx.value = subIdx
+  try { e?.dataTransfer!.dropEffect = 'move' } catch {}
 }
 function onSubDrop(parentIdx: number, subIdx: number) {
   if (dndState.type !== 'sub' || dndState.parentIdx !== parentIdx || dndState.subIdx === undefined) return
