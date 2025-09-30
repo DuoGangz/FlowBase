@@ -15,19 +15,31 @@
           <span :class="{ 'line-through text-gray-500': it.done }">{{ it.content }}</span>
         </div>
         <div class="pl-6 space-y-2">
+          <!-- Plus icon first when input hidden -->
           <button
+            v-if="!it.done && !showSubForm[idx]"
             type="button"
             class="mt-1 w-8 h-8 rounded-full border border-gray-300 bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center justify-center"
-            :aria-label="showSubForm[idx] ? 'Hide subtask' : 'Add subtask'"
+            :aria-label="'Add subtask'"
             @click="toggleSubForm(idx)"
-            v-if="!it.done"
           >
             <span class="text-lg leading-none">+</span>
           </button>
+          <!-- Input shows after plus pressed -->
           <form v-if="showSubForm[idx] && !it.done" class="flex gap-2" @submit.prevent="addSubItem(idx)">
             <input v-model="subDraft[idx]" placeholder="Add subtask" class="border rounded px-2 py-1 flex-1" />
             <button class="border px-2 py-1 rounded">Add</button>
           </form>
+          <!-- Plus icon below input when open -->
+          <button
+            v-if="!it.done && showSubForm[idx]"
+            type="button"
+            class="w-8 h-8 rounded-full border border-gray-300 bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center justify-center"
+            :aria-label="'Hide subtask input'"
+            @click="toggleSubForm(idx)"
+          >
+            <span class="text-lg leading-none">+</span>
+          </button>
           <ul class="space-y-1">
             <li v-for="(sub, sIdx) in visibleSubItems(it)" :key="sIdx" class="flex items-center gap-2">
               <input type="checkbox" v-model="sub.done" />
@@ -67,6 +79,7 @@ function addSubItem(idx: number) {
   if (!it.subItems) it.subItems = []
   it.subItems.push({ content: txt, done: false })
   subDraft[idx] = ''
+  showSubForm[idx] = false
 }
 
 function toggleSubForm(idx: number) {
