@@ -17,12 +17,12 @@
         <div class="pl-6 space-y-2">
           <button
             type="button"
-            class="w-6 h-6 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center"
+            class="mt-1 w-8 h-8 rounded-full border border-gray-300 bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center justify-center"
             :aria-label="showSubForm[idx] ? 'Hide subtask' : 'Add subtask'"
             @click="toggleSubForm(idx)"
             v-if="!it.done"
           >
-            <span class="text-base leading-none">+</span>
+            <span class="text-lg leading-none">+</span>
           </button>
           <form v-if="showSubForm[idx] && !it.done" class="flex gap-2" @submit.prevent="addSubItem(idx)">
             <input v-model="subDraft[idx]" placeholder="Add subtask" class="border rounded px-2 py-1 flex-1" />
