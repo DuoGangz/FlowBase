@@ -11,10 +11,23 @@
     </form>
 
     <ul class="space-y-2">
-      <li v-for="it in items" :key="it.id" class="space-y-1">
+      <li
+        v-for="it in items"
+        :key="it.id"
+        class="space-y-1"
+        draggable="true"
+        @dragstart="onItemDragStart(it)"
+        @dragover.prevent="onItemDragOver(it)"
+        @drop.prevent="onItemDrop(it)"
+        :class="{ 'bg-gray-50 rounded': dragOverItemId===it.id }"
+      >
         <div class="flex items-center gap-2">
           <input type="checkbox" v-model="it.done" @change="toggleItem(it)" />
           <span :class="{ 'line-through text-gray-500': it.done }">{{ it.content }}</span>
+          <div class="ml-auto inline-flex gap-1">
+            <button class="px-2 py-0.5 border rounded text-xs" @click="moveItem(it, -1)">↑</button>
+            <button class="px-2 py-0.5 border rounded text-xs" @click="moveItem(it, 1)">↓</button>
+          </div>
         </div>
         <div class="pl-6 space-y-2">
           <ul class="space-y-1">
@@ -22,9 +35,18 @@
               v-for="sub in visibleSubItems(it)"
               :key="sub.id"
               class="flex items-center gap-2"
+              draggable="true"
+              @dragstart="onSubDragStart(it, sub)"
+              @dragover.prevent="onSubDragOver(it, sub)"
+              @drop.prevent="onSubDrop(it, sub)"
+              :class="{ 'bg-gray-50 rounded': dragOverSubId===sub.id && dragOverParentId===it.id }"
             >
               <input type="checkbox" v-model="sub.done" @change="toggleSubItem(sub)" />
               <span :class="{ 'line-through text-gray-400': sub.done }">{{ sub.content }}</span>
+              <div class="ml-auto inline-flex gap-1">
+                <button class="px-2 py-0.5 border rounded text-xs" @click="moveSubItem(it, sub, -1)">↑</button>
+                <button class="px-2 py-0.5 border rounded text-xs" @click="moveSubItem(it, sub, 1)">↓</button>
+              </div>
             </li>
           </ul>
           <!-- Input appears after pressing plus -->
@@ -60,6 +82,10 @@ const newItem = ref('')
 const listId = ref<number | null>(props.listId ?? null)
 const subItemDraft = reactive<Record<number, string>>({})
 const showSubForm = reactive<Record<number, boolean>>({})
+const dragState = reactive<{ type:'item'|'sub'|null; itemId?:number; subId?:number; parentId?:number }>({ type: null })
+const dragOverItemId = ref<number | null>(null)
+const dragOverParentId = ref<number | null>(null)
+const dragOverSubId = ref<number | null>(null)
 
 onMounted(async () => {
   if (!listId.value) {
@@ -118,6 +144,80 @@ async function addSubItem(it: Item) {
 
 async function toggleSubItem(sub: SubItem) {
   await $fetch('/api/todo-subitems', { method: 'PUT', body: { id: sub.id, done: sub.done } })
+}
+
+function reorder<T extends { id:number }>(arr: T[], id: number, dir: 1 | -1) {
+  const idx = arr.findIndex(a => a.id === id)
+  if (idx < 0) return arr
+  const target = idx + dir
+  if (target < 0 || target >= arr.length) return arr
+  const copy = arr.slice()
+  const [moved] = copy.splice(idx, 1)
+  copy.splice(target, 0, moved)
+  return copy
+}
+
+async function moveItem(it: Item, dir: 1 | -1) {
+  items.value = reorder(items.value, it.id, dir)
+  const order = items.value.map((x, i) => ({ id: x.id, position: i }))
+  await $fetch('/api/todo-items', { method: 'PUT', body: { order } })
+}
+
+async function moveSubItem(parent: Item, sub: SubItem, dir: 1 | -1) {
+  const current = parent.subItems ?? []
+  parent.subItems = reorder(current, sub.id, dir)
+  const order = (parent.subItems ?? []).map((x, i) => ({ id: x.id, position: i }))
+  await $fetch('/api/todo-subitems', { method: 'PUT', body: { order } })
+}
+
+function onItemDragStart(it: Item) {
+  dragState.type = 'item'
+  dragState.itemId = it.id
+}
+function onItemDragOver(it: Item) {
+  dragOverItemId.value = it.id
+}
+async function onItemDrop(it: Item) {
+  if (dragState.type !== 'item' || dragState.itemId === undefined) return
+  if (dragState.itemId === it.id) return
+  const fromIdx = items.value.findIndex(x => x.id === dragState.itemId)
+  const toIdx = items.value.findIndex(x => x.id === it.id)
+  if (fromIdx < 0 || toIdx < 0) return
+  const copy = items.value.slice()
+  const [moved] = copy.splice(fromIdx, 1)
+  copy.splice(toIdx, 0, moved)
+  items.value = copy
+  dragOverItemId.value = null
+  dragState.type = null
+  const order = items.value.map((x, i) => ({ id: x.id, position: i }))
+  await $fetch('/api/todo-items', { method: 'PUT', body: { order } })
+}
+
+function onSubDragStart(parent: Item, sub: SubItem) {
+  dragState.type = 'sub'
+  dragState.parentId = parent.id
+  dragState.subId = sub.id
+}
+function onSubDragOver(parent: Item, sub: SubItem) {
+  dragOverParentId.value = parent.id
+  dragOverSubId.value = sub.id
+}
+async function onSubDrop(parent: Item, sub: SubItem) {
+  if (dragState.type !== 'sub' || dragState.parentId !== parent.id || dragState.subId === undefined) return
+  if (dragState.subId === sub.id) return
+  const list = parent.subItems ?? []
+  const fromIdx = list.findIndex(x => x.id === dragState.subId)
+  const toIdx = list.findIndex(x => x.id === sub.id)
+  if (fromIdx < 0 || toIdx < 0) return
+  const copy = list.slice()
+  const [moved] = copy.splice(fromIdx, 1)
+  copy.splice(toIdx, 0, moved)
+  parent.subItems = copy
+  dragOverParentId.value = null
+  dragOverSubId.value = null
+  dragState.type = null
+  const order = (parent.subItems ?? []).map((x, i) => ({ id: x.id, position: i }))
+  await $fetch('/api/todo-subitems', { method: 'PUT', body: { order } })
 }
 </script>
 

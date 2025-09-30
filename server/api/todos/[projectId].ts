@@ -11,7 +11,12 @@ export default defineEventHandler(async (event) => {
   if (method === 'GET') {
     return prisma.todo.findMany({
       where: { projectId: projectIdNum },
-      include: { items: { include: { subItems: true } } },
+      include: {
+        items: {
+          include: { subItems: { orderBy: { position: 'asc' } } },
+          orderBy: { position: 'asc' }
+        }
+      },
       orderBy: { createdAt: 'desc' }
     })
   }

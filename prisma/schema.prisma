@@ -99,6 +99,7 @@ model TodoItem {
   id        Int      @id @default(autoincrement())
   content   String
   done      Boolean  @default(false)
+  position  Int      @default(0)
   todoId    Int
   todo      Todo     @relation(fields: [todoId], references: [id])
   createdAt DateTime @default(now())
@@ -110,6 +111,7 @@ model TodoSubItem {
   id          Int      @id @default(autoincrement())
   content     String
   done        Boolean  @default(false)
+  position    Int      @default(0)
   todoItemId  Int
   todoItem    TodoItem @relation(fields: [todoItemId], references: [id])
   createdAt   DateTime @default(now())
