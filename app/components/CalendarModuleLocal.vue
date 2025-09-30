@@ -57,21 +57,16 @@
         </div>
         <div class="max-h-72 overflow-y-auto">
           <ul>
-            <li v-for="hour in dayHours" :key="hour.key" class="border-b last:border-b-0">
+            <li v-for="slot in daySlots" :key="slot.key" class="border-b last:border-b-0">
               <div class="flex items-start">
-                <div class="w-16 shrink-0 text-right pr-2 pt-2 text-xs text-gray-500">{{ hour.label }}</div>
+                <div class="w-16 shrink-0 text-right pr-2 pt-2 text-xs text-gray-500">{{ slot.label }}</div>
                 <div class="flex-1 py-2">
-                  <template v-if="eventsByHour(selectedDate, hour.hour).length">
-                    <ul class="space-y-1">
-                      <li v-for="e in eventsByHour(selectedDate, hour.hour)" :key="e.id" class="text-sm flex items-center gap-2">
-                        <span class="inline-block w-14 text-gray-600">{{ formatTime12h(e.at) }}</span>
-                        <span>{{ e.title }}</span>
-                      </li>
-                    </ul>
-                  </template>
-                  <template v-else>
-                    <div class="text-xs text-gray-400">No items</div>
-                  </template>
+                  <ul v-if="eventsBySlot(selectedDate, slot.hour, slot.minute).length" class="space-y-1">
+                    <li v-for="e in eventsBySlot(selectedDate, slot.hour, slot.minute)" :key="e.id" class="text-sm flex items-center gap-2">
+                      <span class="inline-block w-14 text-gray-600">{{ formatTime12h(e.at) }}</span>
+                      <span>{{ e.title }}</span>
+                    </li>
+                  </ul>
                 </div>
               </div>
             </li>
@@ -267,23 +262,30 @@ function formatTime12h(dt: Date) {
 }
 
 // Day view helpers
-const dayHours = computed(() => {
-  // Full 24-hour span from 12 AM (0) to 11 PM (23)
-  const hours: { hour:number; label:string; key:string }[] = []
+const daySlots = computed(() => {
+  // 24 hours x 4 (15-minute) slots
+  const slots: { hour:number; minute:number; label:string; key:string }[] = []
   for (let h = 0; h < 24; h++) {
-    const dt = new Date()
-    dt.setHours(h, 0, 0, 0)
-    hours.push({
-      hour: h,
-      label: dt.toLocaleTimeString(undefined, { hour: 'numeric', hour12: true }),
-      key: `h-${h}`
-    })
+    for (let m = 0; m < 60; m += 15) {
+      const dt = new Date()
+      dt.setHours(h, m, 0, 0)
+      slots.push({
+        hour: h,
+        minute: m,
+        label: dt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true }),
+        key: `s-${h}-${m}`
+      })
+    }
   }
-  return hours
+  return slots
 })
 
-function eventsByHour(d: Date, hour: number) {
-  return eventsByDaySorted(d).filter(e => e.at.getHours() === hour)
+function eventsBySlot(d: Date, hour: number, minute: number) {
+  return eventsByDaySorted(d).filter(e => {
+    const h = e.at.getHours()
+    const m = Math.floor(e.at.getMinutes() / 15) * 15
+    return h === hour && m === minute
+  })
 }
 
 function unassignedEvents(d: Date) {
