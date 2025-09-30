@@ -118,7 +118,17 @@ async function load() {
   if (!listId.value) return
   const lists = await $fetch(`/api/todos/${props.projectId}`)
   const found = lists.find((l:any) => l.id === listId.value)
-  items.value = (found?.items ?? []) as Item[]
+  const raw: any[] = Array.isArray(found?.items) ? found.items : []
+  items.value = raw
+    .filter((it: any) => it && typeof it.id === 'number')
+    .map((it: any) => ({
+      id: it.id,
+      content: String(it.content ?? it.title ?? ''),
+      done: Boolean(it.done),
+      subItems: Array.isArray(it.subItems)
+        ? it.subItems.filter((s:any)=>s&&typeof s.id==='number').map((s:any)=>({ id:s.id, content:String(s.content||''), done:Boolean(s.done), todoItemId:Number(s.todoItemId||it.id) }))
+        : []
+    })) as Item[]
 }
 async function init() {
   try {
