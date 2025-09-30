@@ -8,10 +8,24 @@
       <input v-model="newItem" placeholder="Add item" class="border rounded px-2 py-1 flex-1" />
       <button class="bg-gray-800 text-white px-2 py-1 rounded">Add</button>
     </form>
-    <ul class="space-y-1">
-      <li v-for="(it, idx) in items" :key="idx" class="flex items-center gap-2">
-        <input type="checkbox" v-model="it.done" />
-        <span :class="{ 'line-through text-gray-500': it.done }">{{ it.content }}</span>
+    <ul class="space-y-2">
+      <li v-for="(it, idx) in items" :key="idx" class="space-y-1">
+        <div class="flex items-center gap-2">
+          <input type="checkbox" v-model="it.done" />
+          <span :class="{ 'line-through text-gray-500': it.done }">{{ it.content }}</span>
+        </div>
+        <div class="pl-6">
+          <form class="flex gap-2" @submit.prevent="addSubItem(idx)">
+            <input v-model="subDraft[idx]" placeholder="Add subtask" class="border rounded px-2 py-1 flex-1" />
+            <button class="border px-2 py-1 rounded">Add</button>
+          </form>
+          <ul class="mt-1 space-y-1">
+            <li v-for="(sub, sIdx) in visibleSubItems(it)" :key="sIdx" class="flex items-center gap-2">
+              <input type="checkbox" v-model="sub.done" />
+              <span :class="{ 'line-through text-gray-400': sub.done }">{{ sub.content }}</span>
+            </li>
+          </ul>
+        </div>
       </li>
     </ul>
   </div>
@@ -19,13 +33,30 @@
 
 <script setup lang="ts">
 const title = ref('Todo List')
-const items = ref<{ content:string; done:boolean }[]>([])
+type LocalSub = { content:string; done:boolean }
+type LocalItem = { content:string; done:boolean; subItems?: LocalSub[] }
+const items = ref<LocalItem[]>([])
 const newItem = ref('')
+const subDraft = reactive<Record<number, string>>({})
 
 function addItem() {
   if (!newItem.value) return
-  items.value.push({ content: newItem.value, done: false })
+  items.value.push({ content: newItem.value, done: false, subItems: [] })
   newItem.value = ''
+}
+
+function visibleSubItems(it: LocalItem) {
+  if (it.done) return []
+  return it.subItems ?? []
+}
+
+function addSubItem(idx: number) {
+  const txt = subDraft[idx]
+  if (!txt) return
+  const it = items.value[idx]
+  if (!it.subItems) it.subItems = []
+  it.subItems.push({ content: txt, done: false })
+  subDraft[idx] = ''
 }
 </script>
 

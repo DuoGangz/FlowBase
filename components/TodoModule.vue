@@ -10,10 +10,28 @@
       <button class="bg-gray-800 text-white px-2 py-1 rounded">Add</button>
     </form>
 
-    <ul class="space-y-1">
-      <li v-for="it in items" :key="it.id" class="flex items-center gap-2">
-        <input type="checkbox" v-model="it.done" @change="toggleItem(it)" />
-        <span :class="{ 'line-through text-gray-500': it.done }">{{ it.content }}</span>
+    <ul class="space-y-2">
+      <li v-for="it in items" :key="it.id" class="space-y-1">
+        <div class="flex items-center gap-2">
+          <input type="checkbox" v-model="it.done" @change="toggleItem(it)" />
+          <span :class="{ 'line-through text-gray-500': it.done }">{{ it.content }}</span>
+        </div>
+        <div class="pl-6">
+          <form class="flex gap-2" @submit.prevent="addSubItem(it)">
+            <input v-model="subItemDraft[it.id]" placeholder="Add subtask" class="border rounded px-2 py-1 flex-1" />
+            <button class="border px-2 py-1 rounded">Add</button>
+          </form>
+          <ul class="mt-1 space-y-1">
+            <li
+              v-for="sub in visibleSubItems(it)"
+              :key="sub.id"
+              class="flex items-center gap-2"
+            >
+              <input type="checkbox" v-model="sub.done" @change="toggleSubItem(sub)" />
+              <span :class="{ 'line-through text-gray-400': sub.done }">{{ sub.content }}</span>
+            </li>
+          </ul>
+        </div>
       </li>
     </ul>
   </div>
@@ -24,9 +42,12 @@ const props = defineProps<{ projectId: number; listId?: number; title?: string }
 const emit = defineEmits<{ (e:'created', listId:number):void; (e:'remove'):void }>()
 
 const title = computed(() => props.title ?? 'Todo List')
-const items = ref<{ id:number; content:string; done:boolean }[]>([])
+type SubItem = { id:number; content:string; done:boolean; todoItemId:number }
+type Item = { id:number; content:string; done:boolean; subItems?: SubItem[] }
+const items = ref<Item[]>([])
 const newItem = ref('')
 const listId = ref<number | null>(props.listId ?? null)
+const subItemDraft = reactive<Record<number, string>>({})
 
 onMounted(async () => {
   if (!listId.value) {
@@ -48,7 +69,7 @@ async function load() {
   if (!listId.value) return
   const lists = await $fetch(`/api/todos/${props.projectId}`)
   const found = lists.find((l:any) => l.id === listId.value)
-  items.value = found?.items ?? []
+  items.value = (found?.items ?? []) as Item[]
 }
 
 async function addItem() {
@@ -60,6 +81,25 @@ async function addItem() {
 
 async function toggleItem(it: { id:number; done:boolean }) {
   await $fetch('/api/todo-items', { method: 'PUT', body: { id: it.id, done: it.done } })
+}
+
+function visibleSubItems(it: Item) {
+  // Show all subtasks while parent is not done; after parent is done, they can be hidden
+  // Requirement: "these will not disappear until the main task is complete"
+  // We interpret as: keep showing until parent done; once done, show none.
+  if (it.done) return []
+  return (it.subItems ?? [])
+}
+
+async function addSubItem(it: Item) {
+  if (!subItemDraft[it.id]) return
+  await $fetch('/api/todo-subitems', { method: 'POST', body: { todoItemId: it.id, content: subItemDraft[it.id] } })
+  subItemDraft[it.id] = ''
+  await load()
+}
+
+async function toggleSubItem(sub: SubItem) {
+  await $fetch('/api/todo-subitems', { method: 'PUT', body: { id: sub.id, done: sub.done } })
 }
 </script>
 
