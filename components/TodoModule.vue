@@ -2,13 +2,7 @@
   <div class="border rounded p-4 space-y-3">
     <div class="flex items-center justify-between">
       <h3 class="font-medium">{{ title }}</h3>
-      <div class="flex items-center gap-2">
-        <div class="inline-flex border rounded overflow-hidden">
-          <button class="px-2 py-1 text-xs" :class="view==='inprogress' ? 'bg-black text-white' : ''" @click="view='inprogress'">In Progress</button>
-          <button class="px-2 py-1 text-xs" :class="view==='completed' ? 'bg-black text-white' : ''" @click="view='completed'">Completed</button>
-        </div>
-        <button class="text-sm text-red-600" @click="$emit('remove')">Remove</button>
-      </div>
+      <button class="text-sm text-red-600" @click="$emit('remove')">Remove</button>
     </div>
 
     <form class="flex gap-2" @submit.prevent="addItem">
@@ -74,6 +68,12 @@
         </div>
       </li>
     </ul>
+    <div class="mt-2">
+      <div class="inline-flex border rounded overflow-hidden">
+        <button class="px-2 py-1 text-xs" :class="view==='inprogress' ? 'bg-black text-white' : ''" @click="view='inprogress'">In Progress</button>
+        <button class="px-2 py-1 text-xs" :class="view==='completed' ? 'bg-black text-white' : ''" @click="view='completed'">Completed</button>
+      </div>
+    </div>
   </div>
 </template>
 

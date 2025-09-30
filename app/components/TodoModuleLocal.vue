@@ -6,13 +6,7 @@
   >
     <div class="flex items-center justify-between">
       <input v-model="title" class="font-medium w-full mr-2 border-b rounded-md px-2 py-1" />
-      <div class="flex items-center gap-2">
-        <div class="inline-flex border rounded overflow-hidden">
-          <button class="px-2 py-1 text-xs" :class="view==='inprogress' ? 'bg-black text-white' : ''" @click="view='inprogress'">In Progress</button>
-          <button class="px-2 py-1 text-xs" :class="view==='completed' ? 'bg-black text-white' : ''" @click="view='completed'">Completed</button>
-        </div>
-        <button class="text-sm text-red-600" @click="$emit('remove')">Remove</button>
-      </div>
+      <button class="text-sm text-red-600" @click="$emit('remove')">Remove</button>
     </div>
     <form class="flex gap-2" @submit.prevent="addItem">
       <input v-model="newItem" placeholder="Add item" class="border rounded-md px-2 py-1 flex-1" />
@@ -75,6 +69,12 @@
         </div>
       </li>
     </ul>
+    <div class="mt-2">
+      <div class="inline-flex border rounded overflow-hidden">
+        <button class="px-2 py-1 text-xs" :class="view==='inprogress' ? 'bg-black text-white' : ''" @click="(view='inprogress', saveLocal())">In Progress</button>
+        <button class="px-2 py-1 text-xs" :class="view==='completed' ? 'bg-black text-white' : ''" @click="(view='completed', saveLocal())">Completed</button>
+      </div>
+    </div>
 
     <!-- Resize handle (bottom-right) -->
     <div
