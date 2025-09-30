@@ -6,7 +6,13 @@
   >
     <div class="flex items-center justify-between">
       <input v-model="title" class="font-medium w-full mr-2 border-b rounded-md px-2 py-1" />
-      <button class="text-sm text-red-600" @click="$emit('remove')">Remove</button>
+      <div class="flex items-center gap-2">
+        <div class="inline-flex border rounded overflow-hidden">
+          <button class="px-2 py-1 text-xs" :class="view==='inprogress' ? 'bg-black text-white' : ''" @click="view='inprogress'">In Progress</button>
+          <button class="px-2 py-1 text-xs" :class="view==='completed' ? 'bg-black text-white' : ''" @click="view='completed'">Completed</button>
+        </div>
+        <button class="text-sm text-red-600" @click="$emit('remove')">Remove</button>
+      </div>
     </div>
     <form class="flex gap-2" @submit.prevent="addItem">
       <input v-model="newItem" placeholder="Add item" class="border rounded-md px-2 py-1 flex-1" />
@@ -17,6 +23,7 @@
         v-for="(it, idx) in items"
         :key="it.id ?? idx"
         class="space-y-1"
+        v-if="view==='inprogress' ? !it.done : it.done"
         draggable="true"
         @dragstart="onItemDragStart(idx, $event)"
         @dragover.prevent="onItemDragOver(idx)"
@@ -102,6 +109,7 @@ const title = ref('Todo List')
 type LocalSub = { id:number; content:string; done:boolean }
 type LocalItem = { id:number; content:string; done:boolean; subItems?: LocalSub[] }
 const items = ref<LocalItem[]>([])
+const view = ref<'inprogress' | 'completed'>('inprogress')
 const newItem = ref('')
 const interactive = ref(true)
 const subDraft = reactive<Record<number, string>>({})
@@ -217,7 +225,7 @@ function cancelWrapperPotentialDrag() {
 function storageKey() { return `todoLocal:${props.uid}` }
 function saveLocal() {
   try {
-    const payload = JSON.stringify({ title: title.value, items: items.value })
+    const payload = JSON.stringify({ title: title.value, items: items.value, view: view.value })
     localStorage.setItem(storageKey(), payload)
   } catch {}
 }
@@ -228,6 +236,7 @@ function loadLocal() {
     const data = JSON.parse(raw)
     if (typeof data?.title === 'string') title.value = data.title
     if (Array.isArray(data?.items)) items.value = data.items
+    if (data?.view === 'completed' || data?.view === 'inprogress') view.value = data.view
   } catch {}
 }
 

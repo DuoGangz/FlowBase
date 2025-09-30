@@ -2,7 +2,13 @@
   <div class="border rounded p-4 space-y-3">
     <div class="flex items-center justify-between">
       <h3 class="font-medium">{{ title }}</h3>
-      <button class="text-sm text-red-600" @click="$emit('remove')">Remove</button>
+      <div class="flex items-center gap-2">
+        <div class="inline-flex border rounded overflow-hidden">
+          <button class="px-2 py-1 text-xs" :class="view==='inprogress' ? 'bg-black text-white' : ''" @click="view='inprogress'">In Progress</button>
+          <button class="px-2 py-1 text-xs" :class="view==='completed' ? 'bg-black text-white' : ''" @click="view='completed'">Completed</button>
+        </div>
+        <button class="text-sm text-red-600" @click="$emit('remove')">Remove</button>
+      </div>
     </div>
 
     <form class="flex gap-2" @submit.prevent="addItem">
@@ -15,6 +21,7 @@
         v-for="it in items"
         :key="it.id"
         class="space-y-1"
+        v-if="view==='inprogress' ? !it.done : it.done"
         draggable="true"
         @dragstart="onItemDragStart(it)"
         @dragover.prevent="onItemDragOver(it)"
@@ -78,6 +85,7 @@ const title = computed(() => props.title ?? 'Todo List')
 type SubItem = { id:number; content:string; done:boolean; todoItemId:number }
 type Item = { id:number; content:string; done:boolean; subItems?: SubItem[] }
 const items = ref<Item[]>([])
+const view = ref<'inprogress' | 'completed'>('inprogress')
 const newItem = ref('')
 const listId = ref<number | null>(props.listId ?? null)
 const subItemDraft = reactive<Record<number, string>>({})
