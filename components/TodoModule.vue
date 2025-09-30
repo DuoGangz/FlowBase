@@ -96,12 +96,7 @@ const dragOverParentId = ref<number | null>(null)
 const dragOverSubId = ref<number | null>(null)
 
 onMounted(async () => {
-  if (!listId.value) {
-    const created = await $fetch(`/api/todos/${props.projectId}`, { method: 'POST', body: { title: title.value } })
-    listId.value = created.id
-    emit('created', created.id)
-  }
-  await load()
+  await init()
 })
 
 watch(() => props.listId, async (v) => {
@@ -110,12 +105,30 @@ watch(() => props.listId, async (v) => {
     await load()
   }
 })
+watch(() => props.projectId, async (v) => {
+  if (v && v > 0) {
+    await init()
+  }
+})
 
 async function load() {
   if (!listId.value) return
   const lists = await $fetch(`/api/todos/${props.projectId}`)
   const found = lists.find((l:any) => l.id === listId.value)
   items.value = (found?.items ?? []) as Item[]
+}
+async function init() {
+  try {
+    if (!props.projectId || props.projectId <= 0) return
+    if (!listId.value) {
+      const created = await $fetch(`/api/todos/${props.projectId}`, { method: 'POST', body: { title: title.value } })
+      listId.value = created.id
+      emit('created', created.id)
+    }
+    await load()
+  } catch (e) {
+    console.error('TodoModule init failed', e)
+  }
 }
 
 async function addItem() {
