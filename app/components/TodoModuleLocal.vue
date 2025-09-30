@@ -292,8 +292,7 @@ function toggleItemCheckedLocal(idx: number, checked: boolean) {
   if (!it) return
   it.done = Boolean(checked)
   // auto-switch list so the item disappears from current view
-  if (it.done && view.value === 'inprogress') view.value = 'completed'
-  if (!it.done && view.value === 'completed') view.value = 'inprogress'
+  // No need to flip views; the filter hides it. Just persist.
   saveLocal()
 }
 

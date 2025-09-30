@@ -161,8 +161,8 @@ async function toggleItemChecked(it: any, checked: boolean) {
   if (!it || typeof it.id !== 'number') return
   it.done = Boolean(checked)
   await $fetch('/api/todo-items', { method: 'PUT', body: { id: it.id, done: it.done } })
-  if (it.done && view.value === 'inprogress') view.value = 'completed'
-  if (!it.done && view.value === 'completed') view.value = 'inprogress'
+  // Reload to ensure the list reflects server state and ordering
+  await load()
 }
 
 function visibleSubItems(it: Item) {
