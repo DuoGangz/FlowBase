@@ -18,10 +18,9 @@
 
     <ul class="space-y-2">
       <li
-        v-for="it in items"
+        v-for="it in filteredItems"
         :key="it.id"
         class="space-y-1"
-        v-if="view==='inprogress' ? !it.done : it.done"
         draggable="true"
         @dragstart="onItemDragStart(it)"
         @dragover.prevent="onItemDragOver(it)"
@@ -94,6 +93,10 @@ const dragState = reactive<{ type:'item'|'sub'|null; itemId?:number; subId?:numb
 const dragOverItemId = ref<number | null>(null)
 const dragOverParentId = ref<number | null>(null)
 const dragOverSubId = ref<number | null>(null)
+
+const filteredItems = computed(() => {
+  return items.value.filter(it => (view.value === 'inprogress' ? !it.done : it.done))
+})
 
 onMounted(async () => {
   await init()
