@@ -21,6 +21,7 @@
         @dragstart="onItemDragStart(idx)"
         @dragover.prevent="onItemDragOver(idx)"
         @drop.prevent="onItemDrop(idx)"
+        @mousedown.stop
         :class="{ 'bg-gray-50 rounded': dragOverItemIdx===idx }"
       >
         <div class="flex items-center gap-2">
@@ -41,6 +42,7 @@
               @dragstart="onSubDragStart(idx, sIdx)"
               @dragover.prevent="onSubDragOver(idx, sIdx)"
               @drop.prevent="onSubDrop(idx, sIdx)"
+              @mousedown.stop
               :class="{ 'bg-gray-50 rounded': dragOverParentIdx===idx && dragOverSubIdx===sIdx }"
             >
               <input type="checkbox" v-model="sub.done" />
@@ -196,6 +198,13 @@ function onWrapperMouseDown(e: MouseEvent) {
   }, DRAG_HOLD_MS)
 }
 
+function cancelWrapperPotentialDrag() {
+  if (pressTimerId.value !== null) {
+    clearTimeout(pressTimerId.value)
+    pressTimerId.value = null
+  }
+}
+
 onMounted(() => {
   window.addEventListener('mousemove', onMouseMove)
   window.addEventListener('mouseup', onMouseUp)
@@ -278,6 +287,7 @@ function moveSubItem(parentIdx: number, subIdx: number, dir: 1 | -1) {
 function onItemDragStart(idx: number) {
   dndState.type = 'item'
   dndState.itemIdx = idx
+  cancelWrapperPotentialDrag()
 }
 function onItemDragOver(idx: number) {
   dragOverItemIdx.value = idx
@@ -297,6 +307,7 @@ function onSubDragStart(parentIdx: number, subIdx: number) {
   dndState.type = 'sub'
   dndState.parentIdx = parentIdx
   dndState.subIdx = subIdx
+  cancelWrapperPotentialDrag()
 }
 function onSubDragOver(parentIdx: number, subIdx: number) {
   dragOverParentIdx.value = parentIdx
