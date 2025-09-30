@@ -23,7 +23,14 @@ export default defineEventHandler(async (event) => {
   if (method === 'POST') {
     const body = await readBody<{ title: string; userId?: number }>(event)
     if (!body?.title) throw createError({ statusCode: 400, statusMessage: 'title is required' })
-    return prisma.todo.create({ data: { title: body.title, userId: body.userId ?? 1, projectId: projectIdNum } })
+    // Choose a valid user id. Prefer provided, else any user in the same account as the project.
+    let userId = body.userId
+    if (!userId) {
+      const project = await prisma.project.findUnique({ where: { id: projectIdNum } })
+      const fallbackUser = project ? await prisma.user.findFirst({ where: { accountId: project.accountId } }) : null
+      userId = fallbackUser?.id || 1
+    }
+    return prisma.todo.create({ data: { title: body.title, userId: Number(userId), projectId: projectIdNum } })
   }
   if (method === 'PUT') {
     const body = await readBody<{ id: number; title?: string }>(event)
