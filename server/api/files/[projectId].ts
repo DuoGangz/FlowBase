@@ -3,6 +3,7 @@ import { getCurrentUser } from '~~/server/utils/auth'
 import path from 'node:path'
 import { promises as fs } from 'node:fs'
 import { put, del } from '@vercel/blob'
+import { getFirebaseBucket } from '~~/server/utils/firebaseAdmin'
 
 const UPLOADS_ROOT = path.join(process.cwd(), 'public', 'uploads', 'projects')
 
@@ -47,11 +48,19 @@ export default defineEventHandler(async (event) => {
     if (!file || !file.filename || !file.data) throw createError({ statusCode: 400, statusMessage: 'No file uploaded' })
 
     const safe = sanitizeFilename(file.filename)
+    const storageMode = (process.env.FILES_STORAGE || '').toLowerCase() // 'firebase' | 'blob' | '' (local)
     const isVercel = Boolean(process.env.VERCEL)
     const blobToken = process.env.BLOB_READ_WRITE_TOKEN
     let publicPath = ''
 
-    if (isVercel) {
+    if (storageMode === 'firebase') {
+      const bucket = getFirebaseBucket()
+      const pathname = `projects/${projectIdNum}/${Date.now()}-${safe}`
+      const fileRef = bucket.file(pathname)
+      await fileRef.save(file.data as Buffer, { contentType: file.type || undefined, resumable: false, public: true })
+      // Make public URL
+      publicPath = `https://storage.googleapis.com/${bucket.name}/${pathname}`
+    } else if (isVercel) {
       if (!blobToken) {
         throw createError({ statusCode: 500, statusMessage: 'Blob storage not configured. Create a Vercel Blob store.' })
       }
@@ -102,8 +111,16 @@ export default defineEventHandler(async (event) => {
     try {
       const isBlobUrl = typeof existing.path === 'string' && existing.path.startsWith('http')
       if (isBlobUrl) {
-        const blobToken = process.env.BLOB_READ_WRITE_TOKEN
-        await del(existing.path, blobToken ? { token: blobToken } : undefined as any)
+        if (existing.path.includes('storage.googleapis.com')) {
+          try {
+            const bucket = getFirebaseBucket()
+            const pathname = existing.path.split(`https://storage.googleapis.com/${bucket.name}/`)[1]
+            if (pathname) await bucket.file(pathname).delete({ ignoreNotFound: true })
+          } catch {}
+        } else {
+          const blobToken = process.env.BLOB_READ_WRITE_TOKEN
+          await del(existing.path, blobToken ? { token: blobToken } : undefined as any)
+        }
       } else {
         const fileFsPath = path.join(process.cwd(), 'public', existing.path)
         await fs.unlink(fileFsPath)
