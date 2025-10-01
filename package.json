@@ -7,19 +7,19 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "prisma generate && nuxt prepare",
+    "postinstall": "nuxt prepare",
     "start": "node .output/server/index.mjs",
-    "vercel-build": "prisma migrate deploy && prisma generate && nuxt build"
+    "vercel-build": "nuxt build"
   },
   "dependencies": {
     "@pinia/nuxt": "^0.11.2",
-    "@prisma/client": "^6.16.2",
+    "@prisma/client": "0.0.0",
     "firebase": "^10.14.1",
     "firebase-admin": "^12.6.0",
     "@vercel/blob": "^0.22.0",
     "nuxt": "^4.1.2",
     "pinia": "^3.0.3",
-    "prisma": "^6.16.2",
+    "prisma": "0.0.0",
     "vue": "^3.5.21",
     "vue-router": "^4.5.1"
   },

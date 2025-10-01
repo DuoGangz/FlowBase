@@ -1,9 +1,9 @@
-import { prisma } from '~~/server/utils/prisma'
 import { getCurrentUser } from '~~/server/utils/auth'
 import path from 'node:path'
 import { promises as fs } from 'node:fs'
 import { put, del } from '@vercel/blob'
 import { getFirebaseBucket } from '~~/server/utils/firebaseAdmin'
+import { getFirestore, getNextSequence } from '~~/server/utils/firestore'
 
 const UPLOADS_ROOT = path.join(process.cwd(), 'public', 'uploads', 'projects')
 
@@ -28,14 +28,16 @@ export default defineEventHandler(async (event) => {
   if (method === 'GET') {
     const me = await getCurrentUser(event)
     const scope = String((getQuery(event) as any).scope || 'shared')
-    const where: any = { projectId: projectIdNum }
+    const db = getFirestore()
+    let q = db.collection('files').where('projectId', '==', projectIdNum)
     if (scope === 'private') {
       if (!me) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-      where.ownerUserId = me.id
+      q = q.where('ownerUserId', '==', String(me.id))
     } else {
-      where.ownerUserId = null
+      q = q.where('ownerUserId', '==', null)
     }
-    return prisma.file.findMany({ where, orderBy: { createdAt: 'desc' } })
+    const snap = await q.orderBy('createdAt', 'desc').get()
+    return snap.docs.map(d => d.data())
   }
 
   if (method === 'POST') {
@@ -83,15 +85,19 @@ export default defineEventHandler(async (event) => {
       publicPath = dest.replace(path.join(process.cwd(), 'public'), '').replace(/\\/g, '/')
     }
 
-    const created = await prisma.file.create({
-      data: {
-        path: publicPath,
-        metadata: { filename: safe, size: (file.data as Buffer).length, type: file.type || null, scope },
-        projectId: projectIdNum,
-        ownerUserId: scope === 'private' ? me.id : null
-      }
-    })
-    return created
+    const db = getFirestore()
+    const id = await getNextSequence('files')
+    const createdAt = new Date().toISOString()
+    const doc = {
+      id,
+      path: publicPath,
+      metadata: { filename: safe, size: (file.data as Buffer).length, type: file.type || null, scope },
+      projectId: projectIdNum,
+      ownerUserId: scope === 'private' ? String(me.id) : null,
+      createdAt
+    }
+    await db.collection('files').doc(String(id)).set(doc)
+    return doc
   }
 
   if (method === 'DELETE') {
@@ -101,8 +107,10 @@ export default defineEventHandler(async (event) => {
     const id = Number(query.id)
     if (!id) throw createError({ statusCode: 400, statusMessage: 'id is required' })
 
-    const existing = await prisma.file.findUnique({ where: { id } })
-    if (!existing) throw createError({ statusCode: 404, statusMessage: 'File not found' })
+    const db = getFirestore()
+    const existingSnap = await db.collection('files').doc(String(id)).get()
+    if (!existingSnap.exists) throw createError({ statusCode: 404, statusMessage: 'File not found' })
+    const existing: any = existingSnap.data()
     // Only owner can delete private files; shared files deletable by admins/owners or anyone? Default: allow owner of private; shared allowed for any authenticated for now.
     if (existing.ownerUserId && existing.ownerUserId !== me.id) {
       throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
@@ -127,7 +135,7 @@ export default defineEventHandler(async (event) => {
       }
     } catch {}
 
-    await prisma.file.delete({ where: { id } })
+    await db.collection('files').doc(String(id)).delete()
     return { ok: true }
   }
 

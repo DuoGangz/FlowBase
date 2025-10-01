@@ -1,5 +1,5 @@
-import { prisma } from '~~/server/utils/prisma'
 import { getCurrentUser } from '~~/server/utils/auth'
+import { getFirestore } from '~~/server/utils/firestore'
 
 type UpsertBody = {
   homePageId: number
@@ -16,16 +16,16 @@ export default defineEventHandler(async (event) => {
     if (me.role !== 'OWNER' && me.role !== 'ADMIN') throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
     const body = await readBody<UpsertBody>(event)
     if (!body?.homePageId) throw createError({ statusCode: 400, statusMessage: 'homePageId required' })
-    const page = await prisma.homePage.findUnique({ where: { id: Number(body.homePageId) } })
+    const db = getFirestore()
+    const pageDoc = await db.collection('homePages').doc(String(body.homePageId)).get()
+    const page: any = pageDoc.exists ? pageDoc.data() : null
     if (!page || page.accountId !== me.accountId) throw createError({ statusCode: 404, statusMessage: 'Page not found' })
 
     // Replace permissions according to assignments
-    await prisma.homePagePermission.deleteMany({ where: { homePageId: page.id } })
-    const toCreate = body.assignments
-      .filter(a => a.enabled)
-      .map(a => ({ homePageId: page.id, userId: a.userId, canEdit: !!a.canEdit }))
-    if (toCreate.length > 0) {
-      await prisma.homePagePermission.createMany({ data: toCreate, skipDuplicates: true })
+    const existing = await db.collection('homePagePermissions').where('homePageId', '==', page.id).get()
+    for (const d of existing.docs) { await d.ref.delete() }
+    for (const a of body.assignments.filter(a => a.enabled)) {
+      await db.collection('homePagePermissions').add({ homePageId: page.id, userId: String(a.userId), canEdit: !!a.canEdit, createdAt: new Date().toISOString() })
     }
     return { ok: true }
   }
@@ -34,11 +34,13 @@ export default defineEventHandler(async (event) => {
     const query = getQuery(event)
     const homePageId = Number(query.homePageId)
     if (!homePageId) throw createError({ statusCode: 400, statusMessage: 'homePageId required' })
-    const page = await prisma.homePage.findUnique({ where: { id: homePageId } })
+    const db = getFirestore()
+    const pageDoc = await db.collection('homePages').doc(String(homePageId)).get()
+    const page: any = pageDoc.exists ? pageDoc.data() : null
     if (!page || page.accountId !== me.accountId) throw createError({ statusCode: 404, statusMessage: 'Page not found' })
     if (me.role !== 'OWNER' && me.role !== 'ADMIN') throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
-    const perms = await prisma.homePagePermission.findMany({ where: { homePageId }, orderBy: { createdAt: 'asc' } })
-    return perms
+    const snap = await db.collection('homePagePermissions').where('homePageId', '==', homePageId).orderBy('createdAt', 'asc').get()
+    return snap.docs.map(d => d.data())
   }
 
   throw createError({ statusCode: 405, statusMessage: 'Method Not Allowed' })

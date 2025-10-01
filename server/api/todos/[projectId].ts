@@ -1,4 +1,4 @@
-import { prisma } from '~~/server/utils/prisma'
+import { getFirestore, getNextSequence } from '~~/server/utils/firestore'
 
 export default defineEventHandler(async (event) => {
   const { projectId } = getRouterParams(event)
@@ -9,39 +9,51 @@ export default defineEventHandler(async (event) => {
 
   const method = getMethod(event)
   if (method === 'GET') {
-    return prisma.todo.findMany({
-      where: { projectId: projectIdNum },
-      include: {
-        items: {
-          include: { subItems: { orderBy: { position: 'asc' } } },
-          orderBy: { position: 'asc' }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    })
+    const db = getFirestore()
+    const listsSnap = await db.collection('todos').where('projectId', '==', projectIdNum).get()
+    const lists = listsSnap.docs.map(d => d.data())
+    for (const list of lists as any[]) {
+      const itemsSnap = await db.collection('todoItems').where('todoId', '==', list.id).orderBy('position', 'asc').get()
+      const items = itemsSnap.docs.map(d => d.data())
+      for (const it of items as any[]) {
+        const subsSnap = await db.collection('todoSubItems').where('todoItemId', '==', it.id).orderBy('position', 'asc').get()
+        it.subItems = subsSnap.docs.map(d => d.data())
+      }
+      list.items = items
+    }
+    return (lists as any[]).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
   }
   if (method === 'POST') {
     const body = await readBody<{ title: string; userId?: number }>(event)
     if (!body?.title) throw createError({ statusCode: 400, statusMessage: 'title is required' })
-    // Choose a valid user id. Prefer provided, else any user in the same account as the project.
-    let userId = body.userId
-    if (!userId) {
-      const project = await prisma.project.findUnique({ where: { id: projectIdNum } })
-      const fallbackUser = project ? await prisma.user.findFirst({ where: { accountId: project.accountId } }) : null
-      userId = fallbackUser?.id || 1
-    }
-    return prisma.todo.create({ data: { title: body.title, userId: Number(userId), projectId: projectIdNum } })
+    const db = getFirestore()
+    const id = await getNextSequence('todos')
+    const now = new Date().toISOString()
+    const doc = { id, title: body.title, userId: Number(body.userId || 1), projectId: projectIdNum, createdAt: now, updatedAt: now }
+    await db.collection('todos').doc(String(id)).set(doc)
+    return doc
   }
   if (method === 'PUT') {
     const body = await readBody<{ id: number; title?: string }>(event)
     if (!body?.id) throw createError({ statusCode: 400, statusMessage: 'id is required' })
-    return prisma.todo.update({ where: { id: body.id }, data: { title: body.title } })
+    const db = getFirestore()
+    await db.collection('todos').doc(String(body.id)).update({ title: body.title })
+    const snap = await db.collection('todos').doc(String(body.id)).get()
+    return snap.data()
   }
   if (method === 'DELETE') {
     const query = getQuery(event)
     const id = Number(query.id)
     if (!id) throw createError({ statusCode: 400, statusMessage: 'id is required' })
-    await prisma.todo.delete({ where: { id } })
+    const db = getFirestore()
+    // delete subcollections
+    const items = await db.collection('todoItems').where('todoId', '==', id).get()
+    for (const it of items.docs) {
+      const subs = await db.collection('todoSubItems').where('todoItemId', '==', it.get('id')).get()
+      for (const s of subs.docs) { await s.ref.delete() }
+      await it.ref.delete()
+    }
+    await db.collection('todos').doc(String(id)).delete()
     return { ok: true }
   }
   throw createError({ statusCode: 405, statusMessage: 'Method Not Allowed' })

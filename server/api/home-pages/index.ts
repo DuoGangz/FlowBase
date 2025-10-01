@@ -1,5 +1,5 @@
-import { prisma } from '~~/server/utils/prisma'
 import { getCurrentUser } from '~~/server/utils/auth'
+import { getFirestore, getNextSequence } from '~~/server/utils/firestore'
 
 type CreateBody = {
   name: string
@@ -14,39 +14,33 @@ export default defineEventHandler(async (event) => {
   const method = getMethod(event)
 
   if (method === 'GET') {
-    // If no pages exist yet for this account, create a default one
-    const existingCount = await prisma.homePage.count({ where: { accountId: me.accountId } })
-    if (existingCount === 0) {
-      await prisma.homePage.create({ data: { accountId: me.accountId, name: 'Home', layout: { modules: [] }, isDefault: true } })
+    const db = getFirestore()
+    // Ensure default exists
+    const existing = await db.collection('homePages').where('accountId', '==', me.accountId).get()
+    if (existing.empty) {
+      const id = await getNextSequence('homePages')
+      await db.collection('homePages').doc(String(id)).set({ id, accountId: me.accountId, name: 'Home', layout: { modules: [] }, isDefault: true, createdAt: new Date().toISOString() })
+    }
+    // Ensure personal exists
+    const mine = await db.collection('homePagePermissions').where('userId', '==', String(me.id)).get()
+    if (mine.empty) {
+      const id = await getNextSequence('homePages')
+      const name = `My Page #${me.id}`
+      await db.collection('homePages').doc(String(id)).set({ id, accountId: me.accountId, name, layout: { modules: [] }, isDefault: false, createdAt: new Date().toISOString() })
+      const pid = await getNextSequence('homePagePermissions')
+      await db.collection('homePagePermissions').doc(String(pid)).set({ id: pid, homePageId: id, userId: String(me.id), canEdit: true, createdAt: new Date().toISOString() })
     }
 
-    // Ensure the user has a personal page with edit permission
-    const mineCount = await prisma.homePagePermission.count({ where: { userId: me.id } })
-    if (mineCount === 0) {
-      // Create a uniquely named personal page to avoid the (accountId, name) unique constraint
-      const personalName = `My Page #${me.id}`
-      const created = await prisma.homePage.create({
-        data: { accountId: me.accountId, name: personalName, layout: { modules: [] }, isDefault: false }
-      })
-      await prisma.homePagePermission.create({ data: { homePageId: created.id, userId: me.id, canEdit: true } })
-    }
-
-    // Everyone sees: default page(s) and any pages they have explicit permission for.
-    // Also mark which pages are "mine" (I have an explicit permission entry)
-    const pages = await prisma.homePage.findMany({
-      where: {
-        accountId: me.accountId,
-        OR: [
-          { isDefault: true },
-          { permissions: { some: { userId: me.id } } }
-        ]
-      },
-      include: { permissions: { where: { userId: me.id }, select: { id: true } } },
-      orderBy: { createdAt: 'asc' }
-    })
-
-    // Attach a computed flag for the client to prefer personal page
-    return pages.map(p => ({ ...p, mine: (p.permissions?.length ?? 0) > 0 }))
+    // Fetch visible pages
+    const pageSnap = await db.collection('homePages').where('accountId', '==', me.accountId).get()
+    const permSnap = await db.collection('homePagePermissions').where('userId', '==', String(me.id)).get()
+    const editableIds = new Set(permSnap.docs.map(d => d.get('homePageId')))
+    const pages = pageSnap.docs
+      .map(d => d.data())
+      .filter((p: any) => p.isDefault || editableIds.has(p.id))
+      .sort((a: any, b: any) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')))
+      .map((p: any) => ({ ...p, mine: editableIds.has(p.id) }))
+    return pages
   }
 
   if (method === 'POST') {
@@ -55,37 +49,29 @@ export default defineEventHandler(async (event) => {
     if (!name) throw createError({ statusCode: 400, statusMessage: 'name is required' })
 
     // Limit to max 4 pages per account
-    const count = await prisma.homePage.count({ where: { accountId: me.accountId } })
-    if (count >= 4) throw createError({ statusCode: 400, statusMessage: 'Page limit reached (4)' })
+    const db = getFirestore()
+    const countSnap = await db.collection('homePages').where('accountId', '==', me.accountId).get()
+    if (countSnap.size >= 4) throw createError({ statusCode: 400, statusMessage: 'Page limit reached (4)' })
 
     // OWNER/ADMIN: same behavior as before (can set default)
     if (me.role === 'OWNER' || me.role === 'ADMIN') {
       if (body.isDefault) {
-        await prisma.homePage.updateMany({ where: { accountId: me.accountId, isDefault: true }, data: { isDefault: false } })
+        const snap = await db.collection('homePages').where('accountId', '==', me.accountId).where('isDefault', '==', true).get()
+        for (const d of snap.docs) { await d.ref.update({ isDefault: false }) }
       }
-      const created = await prisma.homePage.create({
-        data: {
-          accountId: me.accountId,
-          name,
-          layout: body.layout ?? { modules: [] },
-          isDefault: body.isDefault ?? false
-        }
-      })
-      return created
+      const id = await getNextSequence('homePages')
+      const doc = { id, accountId: me.accountId, name, layout: body.layout ?? { modules: [] }, isDefault: body.isDefault ?? false, createdAt: new Date().toISOString() }
+      await db.collection('homePages').doc(String(id)).set(doc)
+      return doc
     }
 
     // Non-admin users: allow creating a personal page they can edit (not default)
-    const created = await prisma.homePage.create({
-      data: {
-        accountId: me.accountId,
-        name,
-        layout: body.layout ?? { modules: [] },
-        isDefault: false
-      }
-    })
-    // Grant self-edit permission
-    await prisma.homePagePermission.create({ data: { homePageId: created.id, userId: me.id, canEdit: true } })
-    return created
+    const id = await getNextSequence('homePages')
+    const doc = { id, accountId: me.accountId, name, layout: body.layout ?? { modules: [] }, isDefault: false, createdAt: new Date().toISOString() }
+    await db.collection('homePages').doc(String(id)).set(doc)
+    const pid = await getNextSequence('homePagePermissions')
+    await db.collection('homePagePermissions').doc(String(pid)).set({ id: pid, homePageId: id, userId: String(me.id), canEdit: true, createdAt: new Date().toISOString() })
+    return doc
   }
 
   throw createError({ statusCode: 405, statusMessage: 'Method Not Allowed' })

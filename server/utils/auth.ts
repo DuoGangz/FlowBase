@@ -1,15 +1,13 @@
-import { prisma } from './prisma'
+import { getFirestore } from './firestore'
 
 export async function getCurrentUser(event: any) {
   const cookieVal = getCookie(event, 'uid')
-  let id: number | null = cookieVal ? Number(cookieVal) : null
-  if (!id) {
-    // fallback to header for local testing
-    const idHeader = getHeader(event, 'x-user-id')
-    id = idHeader ? Number(idHeader) : null
-  }
-  if (!id) return null
-  return prisma.user.findUnique({ where: { id } })
+  const uid = cookieVal ? String(cookieVal) : null
+  if (!uid) return null
+  const db = getFirestore()
+  const doc = await db.collection('users').doc(uid).get()
+  if (!doc.exists) return null
+  return { id: uid, ...(doc.data() as any) }
 }
 
 export function requireRole(user: any, roles: Array<'ADMIN' | 'MANAGER' | 'USER'>) {
@@ -18,7 +16,7 @@ export function requireRole(user: any, roles: Array<'ADMIN' | 'MANAGER' | 'USER'
   }
 }
 
-export function setUserSession(event: any, userId: number) {
+export function setUserSession(event: any, userId: string) {
   setCookie(event, 'uid', String(userId), { httpOnly: true, sameSite: 'lax', path: '/' })
   // Non-HttpOnly mirror for client-side middleware (demo only)
   setCookie(event, 'uid_js', String(userId), { httpOnly: false, sameSite: 'lax', path: '/' })
