@@ -7,9 +7,9 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare",
+    "postinstall": "prisma generate && nuxt prepare",
     "start": "node .output/server/index.mjs",
-    "vercel-build": "prisma migrate deploy && nuxt build"
+    "vercel-build": "prisma migrate deploy && prisma generate && nuxt build"
   },
   "dependencies": {
     "@pinia/nuxt": "^0.11.2",
