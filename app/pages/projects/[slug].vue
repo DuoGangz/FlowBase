@@ -39,13 +39,16 @@
         <RoadmapModule :project-id="project?.id || 0" />
       </div>
 
-      <div v-else class="space-y-2">
-        <form class="flex gap-2" @submit.prevent="addFile">
-          <input v-model="newFilePath" placeholder="Mock file path" class="border rounded px-3 py-2" />
-          <button class="bg-black text-white px-3 py-2 rounded">Add</button>
-        </form>
+      <div v-else class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xl font-semibold">Files</h2>
+          <AttachmentsUploader v-if="project" :project-id="project.id" @uploaded="onUploaded" />
+        </div>
         <ul class="list-disc list-inside">
-          <li v-for="f in files" :key="f.id">{{ f.path }}</li>
+          <li v-for="f in files" :key="f.id" class="flex items-center gap-2">
+            <a class="text-blue-600 underline" :href="f.path" target="_blank">{{ fileName(f.path) }}</a>
+            <button class="text-red-600" @click="removeFile(f.id)">Delete</button>
+          </li>
         </ul>
       </div>
     </div>
@@ -56,6 +59,7 @@
 import MessageBoard from '~/components/MessageBoard.vue'
 import TodoModule from '~~/components/TodoModule.vue'
 import RoadmapModule from '~~/components/RoadmapModule.vue'
+import AttachmentsUploader from '~~/app/components/AttachmentsUploader.vue'
 
 const route = useRoute()
 const activeTab = ref<'messages' | 'todos' | 'roadmap' | 'files'>('messages')
@@ -74,7 +78,7 @@ function tabClass(tab: string) {
 
 async function load() {
   project.value = await $fetch(`/api/projects/${route.params.slug}`)
-  files.value = project.value.files ?? []
+  files.value = await $fetch(`/api/files/${project.value.id}`)
 }
 
 onMounted(load)
@@ -90,10 +94,21 @@ function updateModuleListId(key: string, id: number) {
   if (m) m.listId = id
 }
 
-async function addFile() {
-  if (!newFilePath.value) return
-  files.value.unshift({ id: Date.now(), path: newFilePath.value })
-  newFilePath.value = ''
+function onUploaded(file: any) {
+  files.value.unshift(file)
+}
+
+function fileName(p: string) {
+  try {
+    return p.split('/').filter(Boolean).pop() || p
+  } catch {
+    return p
+  }
+}
+
+async function removeFile(id: number) {
+  await $fetch(`/api/files/${project.value.id}?id=${id}`, { method: 'DELETE' })
+  files.value = files.value.filter(f => f.id !== id)
 }
 </script>
 
