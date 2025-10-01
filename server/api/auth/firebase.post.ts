@@ -1,5 +1,5 @@
 import { setUserSession } from '~~/server/utils/auth'
-import { prisma } from '~~/server/utils/prisma'
+import { getFirestore, getNextSequence } from '~~/server/utils/firestore'
 import admin from 'firebase-admin'
 
 let initialized = false
@@ -49,39 +49,26 @@ export default defineEventHandler(async (event) => {
   const email = decoded.email
   if (!email) throw createError({ statusCode: 400, statusMessage: 'Email required' })
 
-  let user
-  try {
-    // Determine role for first user
-    const totalUsers = await prisma.user.count()
-    const newUserRole = totalUsers === 0 ? 'OWNER' : 'USER'
-
-    user = await prisma.user.findUnique({ where: { email } })
-    if (!user) {
-      // Ensure there is an account to attach the user to
-      let account = await prisma.account.findFirst()
-      if (!account) {
-        account = await prisma.account.create({ data: { name: 'Default' } })
-      }
-      user = await prisma.user.create({
-        data: {
-          email,
-          username: email,
-          name: decoded.name || email.split('@')[0],
-          role: newUserRole as any,
-          accountId: account.id
-        }
-      })
-    }
-  } catch (e: any) {
-    const code = e?.code || e?.name
-    const message = e?.message || String(e)
-    console.error('[Auth] Database operation failed:', code, message)
-    // Common on Vercel with SQLite: SQLITE_READONLY: attempt to write a readonly database
-    throw createError({ statusCode: 500, statusMessage: 'Database error during sign-in. The database may be read-only or unavailable.' })
+  const db = getFirestore()
+  const existing = await db.collection('users').where('email', '==', email).limit(1).get()
+  let uid: string
+  let name = decoded.name || email.split('@')[0]
+  let role: 'OWNER' | 'ADMIN' | 'MANAGER' | 'USER' = 'USER'
+  if (existing.empty) {
+    const totalSnap = await db.collection('users').limit(1).get()
+    role = totalSnap.empty ? 'OWNER' : 'USER'
+    uid = decoded.uid || email
+    await db.collection('users').doc(uid).set({ id: uid, email, name, role, accountId: 1, createdAt: new Date().toISOString() })
+  } else {
+    const doc = existing.docs[0]
+    uid = doc.id
+    const data: any = doc.data()
+    name = data.name || name
+    role = data.role || role
   }
 
-  setUserSession(event, user.id)
-  return { ok: true, user: { id: user.id, name: user.name, role: user.role } }
+  setUserSession(event, uid)
+  return { ok: true, user: { id: uid, name, role } }
 })
 
 
