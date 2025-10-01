@@ -40,16 +40,10 @@
       </div>
 
       <div v-else class="space-y-4">
-        <div class="flex items-center justify-between">
-          <h2 class="text-xl font-semibold">Files</h2>
-          <AttachmentsUploader v-if="project" :project-id="project.id" @uploaded="onUploaded" />
+        <h2 class="text-xl font-semibold">Files</h2>
+        <div class="grid md:grid-cols-2 gap-6">
+          <AttachmentsModule :project-id="project?.id || 0" />
         </div>
-        <ul class="list-disc list-inside">
-          <li v-for="f in files" :key="f.id" class="flex items-center gap-2">
-            <a class="text-blue-600 underline" :href="f.path" target="_blank">{{ fileName(f.path) }}</a>
-            <button class="text-red-600" @click="removeFile(f.id)">Delete</button>
-          </li>
-        </ul>
       </div>
     </div>
   </div>
@@ -59,13 +53,13 @@
 import MessageBoard from '~/components/MessageBoard.vue'
 import TodoModule from '~~/components/TodoModule.vue'
 import RoadmapModule from '~~/components/RoadmapModule.vue'
-import AttachmentsUploader from '~~/app/components/AttachmentsUploader.vue'
+import AttachmentsModule from '~~/components/AttachmentsModule.vue'
 
 const route = useRoute()
 const activeTab = ref<'messages' | 'todos' | 'roadmap' | 'files'>('messages')
 
 const project = ref<any>(null)
-const files = ref<any[]>([])
+// Files are handled within the AttachmentsModule
 const todoModules = ref<{ key:string; listId:number|null; title:string }[]>([])
 const newFilePath = ref('')
 
@@ -78,7 +72,6 @@ function tabClass(tab: string) {
 
 async function load() {
   project.value = await $fetch(`/api/projects/${route.params.slug}`)
-  files.value = await $fetch(`/api/files/${project.value.id}`)
 }
 
 onMounted(load)
@@ -94,22 +87,7 @@ function updateModuleListId(key: string, id: number) {
   if (m) m.listId = id
 }
 
-function onUploaded(file: any) {
-  files.value.unshift(file)
-}
-
-function fileName(p: string) {
-  try {
-    return p.split('/').filter(Boolean).pop() || p
-  } catch {
-    return p
-  }
-}
-
-async function removeFile(id: number) {
-  await $fetch(`/api/files/${project.value.id}?id=${id}`, { method: 'DELETE' })
-  files.value = files.value.filter(f => f.id !== id)
-}
+// No extra handlers needed; module manages its own state
 </script>
 
 
