@@ -53,6 +53,7 @@ model User {
   homePagePermissions HomePagePermission[]
   assignmentsAuthored Assignment[] @relation("AssignmentAuthor")
   assignmentsAssigned Assignment[] @relation("AssignmentAssignee")
+  filesOwned File[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }
