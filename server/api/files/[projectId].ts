@@ -47,12 +47,16 @@ export default defineEventHandler(async (event) => {
     if (!file || !file.filename || !file.data) throw createError({ statusCode: 400, statusMessage: 'No file uploaded' })
 
     const safe = sanitizeFilename(file.filename)
-    const useBlob = Boolean(process.env.VERCEL)
+    const isVercel = Boolean(process.env.VERCEL)
+    const blobToken = process.env.BLOB_READ_WRITE_TOKEN
     let publicPath = ''
 
-    if (useBlob) {
+    if (isVercel) {
+      if (!blobToken) {
+        throw createError({ statusCode: 500, statusMessage: 'Blob storage not configured. Create a Vercel Blob store.' })
+      }
       const pathname = `projects/${projectIdNum}/${Date.now()}-${safe}`
-      const uploaded = await put(pathname, file.data as Buffer, { access: 'public', addRandomSuffix: false })
+      const uploaded = await put(pathname, file.data as Buffer, { access: 'public', addRandomSuffix: false, token: blobToken as string })
       publicPath = uploaded.url
     } else {
       const projectDir = path.join(UPLOADS_ROOT, String(projectIdNum))
@@ -98,7 +102,8 @@ export default defineEventHandler(async (event) => {
     try {
       const isBlobUrl = typeof existing.path === 'string' && existing.path.startsWith('http')
       if (isBlobUrl) {
-        await del(existing.path)
+        const blobToken = process.env.BLOB_READ_WRITE_TOKEN
+        await del(existing.path, blobToken ? { token: blobToken } : undefined as any)
       } else {
         const fileFsPath = path.join(process.cwd(), 'public', existing.path)
         await fs.unlink(fileFsPath)
