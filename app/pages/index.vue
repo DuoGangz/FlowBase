@@ -48,6 +48,7 @@
             <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('clock')">Time Clock</button>
             <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('roadmap')">Road Map</button>
             <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('assignments')">Assignments</button>
+            <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('attachments')">Attachments</button>
           </div>
         </div>
         <div class="relative">
@@ -82,7 +83,8 @@
           mod.type === 'todo' ? TodoModuleLocal :
           mod.type === 'calendar' ? CalendarModuleLocal :
           mod.type === 'clock' ? ClockModuleLocal :
-          mod.type === 'roadmap' ? RoadmapModuleLocal : AssignmentsModuleLocal
+          mod.type === 'roadmap' ? RoadmapModuleLocal :
+          mod.type === 'assignments' ? AssignmentsModuleLocal : AttachmentsModuleLocal
         "
         :snap="snapMode"
         :uid="mod.key"
@@ -135,11 +137,12 @@ import CalendarModuleLocal from '~/components/CalendarModuleLocal.vue'
 import ClockModuleLocal from '~/components/ClockModuleLocal.vue'
 import RoadmapModuleLocal from '~/components/RoadmapModuleLocal.vue'
 import AssignmentsModuleLocal from '~/components/AssignmentsModuleLocal.vue'
+import AttachmentsModuleLocal from '~/components/AttachmentsModuleLocal.vue'
 import { useUserStore } from '~~/stores/user'
 import BannerCropper from '~/components/BannerCropper.vue'
 import { useSnapGridStore, GRID } from '~~/stores/snapGrid'
 
-type ModuleType = 'todo' | 'calendar' | 'clock' | 'roadmap' | 'assignments'
+type ModuleType = 'todo' | 'calendar' | 'clock' | 'roadmap' | 'assignments' | 'attachments'
 type ModuleLayout = { key: string; type: ModuleType; cell?: { col: number; row: number } }
 const modules = ref<ModuleLayout[]>([])
 const menuOpen = ref(false)
@@ -212,7 +215,7 @@ async function loadTitle() {
 async function onFileChange(e: Event) {
   const input = e.target as HTMLInputElement
   if (!input.files || input.files.length === 0) return
-  cropFile.value = input.files[0]
+  cropFile.value = input.files[0] as File
   input.value = ''
 }
 
@@ -276,7 +279,7 @@ function onClickOutside(e: MouseEvent) {
   }
 }
 
-function addModule(type: 'todo' | 'calendar' | 'clock' | 'roadmap' | 'assignments') {
+function addModule(type: 'todo' | 'calendar' | 'clock' | 'roadmap' | 'assignments' | 'attachments') {
   modules.value.push({ key: Math.random().toString(36).slice(2), type })
   menuOpen.value = false
   saveLayout()
