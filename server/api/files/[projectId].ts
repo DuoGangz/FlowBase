@@ -1,6 +1,8 @@
 import { prisma } from '~~/server/utils/prisma'
+import { getCurrentUser } from '~~/server/utils/auth'
 import path from 'node:path'
 import { promises as fs } from 'node:fs'
+import { put, del } from '@vercel/blob'
 
 const UPLOADS_ROOT = path.join(process.cwd(), 'public', 'uploads', 'projects')
 
@@ -23,53 +25,84 @@ export default defineEventHandler(async (event) => {
   const method = getMethod(event)
 
   if (method === 'GET') {
-    return prisma.file.findMany({ where: { projectId: projectIdNum }, orderBy: { createdAt: 'desc' } })
+    const me = await getCurrentUser(event)
+    const scope = String((getQuery(event) as any).scope || 'shared')
+    const where: any = { projectId: projectIdNum }
+    if (scope === 'private') {
+      if (!me) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
+      where.ownerUserId = me.id
+    } else {
+      where.ownerUserId = null
+    }
+    return prisma.file.findMany({ where, orderBy: { createdAt: 'desc' } })
   }
 
   if (method === 'POST') {
+    const me = await getCurrentUser(event)
+    if (!me) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
+    const query = getQuery(event)
+    const scope = String((query as any).scope || 'shared')
     const form = await readMultipartFormData(event)
     const file = form?.find((f: any) => f && f.filename && f.data)
     if (!file || !file.filename || !file.data) throw createError({ statusCode: 400, statusMessage: 'No file uploaded' })
 
     const safe = sanitizeFilename(file.filename)
-    const projectDir = path.join(UPLOADS_ROOT, String(projectIdNum))
-    await ensureDir(projectDir)
+    const useBlob = Boolean(process.env.VERCEL)
+    let publicPath = ''
 
-    // Avoid overwriting by appending a short timestamp if exists
-    let dest = path.join(projectDir, safe)
-    try {
-      await fs.stat(dest)
-      const ext = path.extname(safe)
-      const nameOnly = path.basename(safe, ext)
-      const unique = `${nameOnly}-${Date.now()}${ext || ''}`
-      dest = path.join(projectDir, unique)
-    } catch {}
-
-    await fs.writeFile(dest, file.data)
-
-    const publicPath = dest.replace(path.join(process.cwd(), 'public'), '').replace(/\\/g, '/')
+    if (useBlob) {
+      const pathname = `projects/${projectIdNum}/${Date.now()}-${safe}`
+      const uploaded = await put(pathname, file.data as Buffer, { access: 'public', addRandomSuffix: false })
+      publicPath = uploaded.url
+    } else {
+      const projectDir = path.join(UPLOADS_ROOT, String(projectIdNum))
+      await ensureDir(projectDir)
+      // Avoid overwriting by appending a short timestamp if exists
+      let dest = path.join(projectDir, safe)
+      try {
+        await fs.stat(dest)
+        const ext = path.extname(safe)
+        const nameOnly = path.basename(safe, ext)
+        const unique = `${nameOnly}-${Date.now()}${ext || ''}`
+        dest = path.join(projectDir, unique)
+      } catch {}
+      await fs.writeFile(dest, file.data)
+      publicPath = dest.replace(path.join(process.cwd(), 'public'), '').replace(/\\/g, '/')
+    }
 
     const created = await prisma.file.create({
       data: {
         path: publicPath,
-        metadata: { filename: safe, size: (file.data as Buffer).length, type: file.type || null },
-        projectId: projectIdNum
+        metadata: { filename: safe, size: (file.data as Buffer).length, type: file.type || null, scope },
+        projectId: projectIdNum,
+        ownerUserId: scope === 'private' ? me.id : null
       }
     })
     return created
   }
 
   if (method === 'DELETE') {
+    const me = await getCurrentUser(event)
+    if (!me) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
     const query = getQuery(event)
     const id = Number(query.id)
     if (!id) throw createError({ statusCode: 400, statusMessage: 'id is required' })
 
     const existing = await prisma.file.findUnique({ where: { id } })
     if (!existing) throw createError({ statusCode: 404, statusMessage: 'File not found' })
+    // Only owner can delete private files; shared files deletable by admins/owners or anyone? Default: allow owner of private; shared allowed for any authenticated for now.
+    if (existing.ownerUserId && existing.ownerUserId !== me.id) {
+      throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
+    }
 
     try {
-      const fileFsPath = path.join(process.cwd(), 'public', existing.path)
-      await fs.unlink(fileFsPath)
+      const isBlobUrl = typeof existing.path === 'string' && existing.path.startsWith('http')
+      if (isBlobUrl) {
+        await del(existing.path)
+      } else {
+        const fileFsPath = path.join(process.cwd(), 'public', existing.path)
+        await fs.unlink(fileFsPath)
+      }
     } catch {}
 
     await prisma.file.delete({ where: { id } })

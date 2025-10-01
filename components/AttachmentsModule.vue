@@ -23,10 +23,10 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{ projectId: number; title?: string }>()
+const props = defineProps<{ projectId: number; title?: string; scope?: 'shared' | 'private' }>()
 defineEmits<{ (e:'remove'): void }>()
 
-const title = computed(() => props.title ?? 'Attachments')
+const title = computed(() => props.title ?? (props.scope === 'private' ? 'My Attachments' : 'Shared Attachments'))
 const uploading = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 const files = ref<any[]>([])
@@ -36,7 +36,8 @@ watch(() => props.projectId, () => load())
 
 async function load() {
   if (!props.projectId) return
-  files.value = await $fetch(`/api/files/${props.projectId}`)
+  const scope = props.scope || 'shared'
+  files.value = await $fetch(`/api/files/${props.projectId}?scope=${scope}`)
 }
 
 async function onUpload() {
@@ -46,7 +47,8 @@ async function onUpload() {
   fd.append('file', file)
   uploading.value = true
   try {
-    const created = await $fetch(`/api/files/${props.projectId}`, { method: 'POST', body: fd })
+    const scope = props.scope || 'shared'
+    const created = await $fetch(`/api/files/${props.projectId}?scope=${scope}`, { method: 'POST', body: fd })
     files.value.unshift(created)
     if (fileInput.value) fileInput.value.value = ''
   } finally {

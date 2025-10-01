@@ -42,7 +42,8 @@
       <div v-else class="space-y-4">
         <h2 class="text-xl font-semibold">Files</h2>
         <div class="grid md:grid-cols-2 gap-6">
-          <AttachmentsModule :project-id="project?.id || 0" />
+          <AttachmentsModule :project-id="project?.id || 0" scope="shared" />
+          <AttachmentsModule :project-id="project?.id || 0" scope="private" />
         </div>
       </div>
     </div>

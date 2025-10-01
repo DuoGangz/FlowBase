@@ -124,6 +124,8 @@ model File {
   metadata  Json
   projectId Int
   project   Project  @relation(fields: [projectId], references: [id])
+  ownerUserId Int?
+  ownerUser   User?    @relation(fields: [ownerUserId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
