@@ -7,6 +7,9 @@
     <div class="flex items-center justify-between">
       <input v-model="title" class="font-medium w-full mr-2 border-b rounded-md px-2 py-1" />
       <div class="inline-flex items-center gap-2">
+        <select v-model.number="selectedProjectId" class="border rounded px-2 py-1 text-sm" @change="load">
+          <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+        </select>
         <select v-model="scope" class="border rounded px-2 py-1 text-sm">
           <option value="shared">Shared</option>
           <option value="private">My Files</option>
@@ -29,6 +32,7 @@
         <button class="text-red-600 text-sm ml-auto" @click="remove(f)">Delete</button>
       </li>
     </ul>
+    <div v-if="error" class="text-red-600 text-sm">{{ error }}</div>
 
     <!-- Resize handle -->
     <div
@@ -49,6 +53,9 @@ const scope = ref<'shared' | 'private'>('shared')
 const files = ref<any[]>([])
 const uploading = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
+const error = ref('')
+const projects = ref<{ id:number; name:string }[]>([])
+const selectedProjectId = ref<number | null>(null)
 
 // drag + resize state
 const position = reactive({ x: 0, y: 0 })
@@ -118,7 +125,7 @@ onMounted(() => {
   window.addEventListener('mousemove', onMouseMove)
   window.addEventListener('mouseup', onMouseUp)
   if (props.snap) applySnap()
-  load()
+  init()
 })
 onBeforeUnmount(() => {
   window.removeEventListener('mousemove', onMouseMove)
@@ -135,15 +142,27 @@ watch(() => gridStore.cells[props.uid], (cell) => {
   position.y = px.y
 })
 watch(scope, load)
+watch(selectedProjectId, load)
+
+async function init() {
+  await loadProjects()
+  await load()
+}
 
 async function load() {
-  const projId = await defaultProjectId()
+  error.value = ''
+  const projId = selectedProjectId.value || null
   if (!projId) { files.value = []; return }
-  files.value = await $fetch(`/api/files/${projId}?scope=${scope.value}`)
+  try {
+    files.value = await $fetch(`/api/files/${projId}?scope=${scope.value}`)
+  } catch (e: any) {
+    error.value = e?.data?.message || e?.message || 'Failed to load files'
+  }
 }
 
 async function onUpload() {
-  const projId = await defaultProjectId()
+  error.value = ''
+  const projId = selectedProjectId.value || null
   if (!projId || !fileInput.value || !fileInput.value.files || fileInput.value.files.length === 0) return
   const file = fileInput.value.files[0]
   const fd = new FormData()
@@ -153,16 +172,23 @@ async function onUpload() {
     const created = await $fetch(`/api/files/${projId}?scope=${scope.value}`, { method: 'POST', body: fd })
     files.value.unshift(created)
     if (fileInput.value) fileInput.value.value = ''
+  } catch (e: any) {
+    error.value = e?.data?.message || e?.message || 'Upload failed'
   } finally {
     uploading.value = false
   }
 }
 
 async function remove(f: any) {
-  const projId = await defaultProjectId()
+  error.value = ''
+  const projId = selectedProjectId.value || null
   if (!projId) return
-  await $fetch(`/api/files/${projId}?id=${f.id}`, { method: 'DELETE' })
-  files.value = files.value.filter(x => x.id !== f.id)
+  try {
+    await $fetch(`/api/files/${projId}?id=${f.id}`, { method: 'DELETE' })
+    files.value = files.value.filter(x => x.id !== f.id)
+  } catch (e: any) {
+    error.value = e?.data?.message || e?.message || 'Delete failed'
+  }
 }
 
 function fileName(p: string) {
@@ -176,13 +202,22 @@ function sizeOf(f: any) {
   return `${(size/1024/1024).toFixed(1)} MB`
 }
 
-// Very simple default project: pick first available
-async function defaultProjectId(): Promise<number | null> {
+async function loadProjects() {
   try {
-    const projects = await $fetch<any[]>(`/api/projects`)
-    const first = projects?.[0]
-    return first?.id || null
-  } catch { return null }
+    const list = await $fetch<any[]>(`/api/projects`)
+    projects.value = Array.isArray(list) ? list.map(p => ({ id: p.id, name: p.name })) : []
+    if (!selectedProjectId.value) selectedProjectId.value = projects.value[0]?.id ?? null
+    if (!selectedProjectId.value && projects.value.length === 0) {
+      // auto-create a General project for convenience
+      try {
+        const created = await $fetch<any>(`/api/projects`, { method: 'POST', body: { name: 'General', slug: 'general' } })
+        if (created?.id) {
+          projects.value = [{ id: created.id, name: created.name }]
+          selectedProjectId.value = created.id
+        }
+      } catch {}
+    }
+  } catch {}
 }
 </script>
 
