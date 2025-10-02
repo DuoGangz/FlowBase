@@ -40,12 +40,19 @@
         {{ uploading ? 'Uploading...' : 'Upload' }}
       </button>
     </form>
-
     <ul class="space-y-1">
       <li v-for="f in files" :key="f.id" class="flex items-center gap-2">
-        <a class="text-blue-600 underline" :href="f.path" target="_blank">{{ fileName(f.path) }}</a>
-        <span class="text-gray-400 text-xs" v-if="sizeOf(f)">({{ sizeOf(f) }})</span>
-        <button class="text-red-600 text-sm ml-auto" @click="remove(f)">Delete</button>
+        <div class="w-6 h-6 flex items-center justify-center rounded border overflow-hidden bg-gray-50 shrink-0">
+          <img v-if="isImage(f)" :src="f.path" alt="preview" class="w-full h-full object-cover" />
+          <div v-else class="w-full h-full flex items-center justify-center select-none" :class="iconClass(f)">
+            <span class="text-[8px] font-semibold uppercase">{{ fileExt(f.path) }}</span>
+          </div>
+        </div>
+        <div class="min-w-0 flex-1">
+          <a class="text-blue-600 underline block truncate" :href="f.path" target="_blank" :title="fileName(f.path)">{{ fileName(f.path) }}</a>
+          <span class="text-gray-400 text-xs" v-if="sizeOf(f)">({{ sizeOf(f) }})</span>
+        </div>
+        <button class="text-red-600 text-sm ml-2" @click="remove(f)">Delete</button>
       </li>
     </ul>
     <div v-if="error" class="text-red-600 text-sm">{{ error }}</div>
@@ -84,7 +91,7 @@ const selectedProjectId = ref<number | null>(null)
 
 // drag + resize state
 const position = reactive({ x: 0, y: 0 })
-const size = reactive({ w: GRID.colWidth, h: GRID.rowHeight * 2 })
+const size = reactive({ w: GRID.colWidth, h: GRID.rowHeight })
 const dragState = reactive({ dragging: false, startX: 0, startY: 0, originX: 0, originY: 0 })
 const resizeState = reactive({ resizing: false, startX: 0, startY: 0, originW: 0, originH: 0 })
 const DRAG_MOVE_THRESHOLD = 4
@@ -105,11 +112,11 @@ const wrapperClass = computed(() => [
   dragState.dragging ? 'select-none cursor-grabbing z-50' : 'select-text cursor-default'
 ])
 
-function applySnap() {
-  if (!props.snap) return
-  size.w = GRID.colWidth
-  size.h = GRID.rowHeight * 2
-  const desired = gridStore.colRowFromPx(position.x, position.y)
+  function applySnap() {
+    if (!props.snap) return
+    size.w = GRID.colWidth
+    size.h = GRID.rowHeight
+    const desired = gridStore.colRowFromPx(position.x, position.y)
   const cell = gridStore.requestSnap(props.uid, desired)
   const px = gridStore.pxFromColRow(cell.col, cell.row)
   position.x = px.x
@@ -168,7 +175,7 @@ onMounted(() => {
     const cell = gridStore.cells[props.uid]
     if (cell) {
       size.w = GRID.colWidth
-      size.h = GRID.rowHeight * 2
+      size.h = GRID.rowHeight
       const px = gridStore.pxFromColRow(cell.col, cell.row)
       position.x = px.x
       position.y = px.y
@@ -192,7 +199,7 @@ onMounted(() => {
 watch(() => props.snap, (snap) => {
   if (snap) {
     size.w = GRID.colWidth
-    size.h = GRID.rowHeight * 2
+    size.h = GRID.rowHeight
     const cell = gridStore.cells[props.uid]
     if (cell) {
       const px = gridStore.pxFromColRow(cell.col, cell.row)
@@ -223,7 +230,7 @@ watch(() => gridStore.cells[props.uid], (cell) => {
   if (!props.snap || !cell) return
   if (dragState.dragging || resizeState.resizing) return
   size.w = GRID.colWidth
-  size.h = GRID.rowHeight * 2
+  size.h = GRID.rowHeight
   const px = gridStore.pxFromColRow(cell.col, cell.row)
   position.x = px.x
   position.y = px.y
@@ -287,6 +294,40 @@ function sizeOf(f: any) {
   if (size < 1024) return `${size} B`
   if (size < 1024*1024) return `${Math.round(size/1024)} KB`
   return `${(size/1024/1024).toFixed(1)} MB`
+}
+
+function fileExt(p: string) {
+  try {
+    const base = p.split('?')[0] || p
+    const ext = (base.split('.')?.pop() || '').toLowerCase()
+    if (ext === 'jpeg') return 'jpg'
+    if (ext === 'docx') return 'doc'
+    if (ext === 'xlsx') return 'xls'
+    if (ext === 'pptx') return 'ppt'
+    return ext || 'file'
+  } catch { return 'file' }
+}
+
+function isImage(f: any) {
+  const mime = f?.metadata?.type || ''
+  if (typeof mime === 'string' && mime.startsWith('image/')) return true
+  const ext = fileExt(String(f?.path || ''))
+  return ['png','jpg','jpeg','gif','webp','svg','bmp','avif'].includes(ext)
+}
+
+function iconClass(f: any) {
+  const ext = fileExt(String(f?.path || '')).toLowerCase()
+  const map: Record<string, string> = {
+    pdf: 'bg-red-100 text-red-700',
+    doc: 'bg-blue-100 text-blue-700', docx: 'bg-blue-100 text-blue-700',
+    xls: 'bg-green-100 text-green-700', xlsx: 'bg-green-100 text-green-700', csv: 'bg-green-100 text-green-700',
+    ppt: 'bg-orange-100 text-orange-700', pptx: 'bg-orange-100 text-orange-700',
+    zip: 'bg-yellow-100 text-yellow-700', rar: 'bg-yellow-100 text-yellow-700', '7z': 'bg-yellow-100 text-yellow-700',
+    txt: 'bg-gray-100 text-gray-700', md: 'bg-gray-100 text-gray-700',
+    mp3: 'bg-purple-100 text-purple-700', wav: 'bg-purple-100 text-purple-700',
+    mp4: 'bg-indigo-100 text-indigo-700', mov: 'bg-indigo-100 text-indigo-700', webm: 'bg-indigo-100 text-indigo-700'
+  }
+  return map[ext] || 'bg-gray-100 text-gray-600'
 }
 
 async function loadProjects() {
