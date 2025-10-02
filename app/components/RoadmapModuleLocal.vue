@@ -143,6 +143,9 @@ function onMouseUp() {
   resizeState.resizing = false
   interactive.value = true
   applySnap()
+  if (!props.snap) {
+    try { localStorage.setItem(`mod.freepos:${props.uid}`, JSON.stringify({ x: position.x, y: position.y, w: size.w, h: size.h })) } catch {}
+  }
   if (pressTimerId.value !== null) {
     clearTimeout(pressTimerId.value)
     pressTimerId.value = null
@@ -180,9 +183,55 @@ function onWrapperMouseDown(e: MouseEvent) {
 onMounted(() => {
   window.addEventListener('mousemove', onMouseMove)
   window.addEventListener('mouseup', onMouseUp)
-  if (props.snap) applySnap()
+  if (props.snap) {
+    const cell = gridStore.cells[props.uid]
+    if (cell) {
+      size.w = GRID.colWidth
+      size.h = GRID.rowHeight
+      const px = gridStore.pxFromColRow(cell.col, cell.row)
+      position.x = px.x
+      position.y = px.y
+    } else {
+      applySnap()
+    }
+  } else {
+    try {
+      const raw = localStorage.getItem(`mod.freepos:${props.uid}`)
+      if (raw) {
+        const p = JSON.parse(raw)
+        if (typeof p?.x === 'number') position.x = p.x
+        if (typeof p?.y === 'number') position.y = p.y
+        if (typeof p?.w === 'number') size.w = p.w
+        if (typeof p?.h === 'number') size.h = p.h
+      }
+    } catch {}
+  }
 })
-watch(() => props.snap, () => applySnap())
+watch(() => props.snap, (snap) => {
+  if (snap) {
+    size.w = GRID.colWidth
+    size.h = GRID.rowHeight
+    const cell = gridStore.cells[props.uid]
+    if (cell) {
+      const px = gridStore.pxFromColRow(cell.col, cell.row)
+      position.x = px.x
+      position.y = px.y
+    } else {
+      applySnap()
+    }
+  } else {
+    try {
+      const raw = localStorage.getItem(`mod.freepos:${props.uid}`)
+      if (raw) {
+        const p = JSON.parse(raw)
+        if (typeof p?.x === 'number') position.x = p.x
+        if (typeof p?.y === 'number') position.y = p.y
+        if (typeof p?.w === 'number') size.w = p.w
+        if (typeof p?.h === 'number') size.h = p.h
+      }
+    } catch {}
+  }
+})
 
 watch(() => gridStore.cells[props.uid], (cell) => {
   if (!props.snap || !cell) return
@@ -211,7 +260,6 @@ onBeforeUnmount(() => {
   gridStore.release(props.uid)
 })
 </script>
-
 
 
 

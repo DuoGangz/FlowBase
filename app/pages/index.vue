@@ -165,6 +165,18 @@ const bannerHeight = 256
 const cropFile = ref<File | null>(null)
 const bannerMenuOpen = ref(false)
 const snapMode = ref(false)
+// Persist snap mode across refreshes (client-side only)
+const SNAP_MODE_KEY = 'flowbase.snapMode'
+onMounted(() => {
+  try {
+    const saved = localStorage.getItem(SNAP_MODE_KEY)
+    if (saved !== null) snapMode.value = saved === 'true'
+  } catch {}
+  // Save whenever the user toggles the mode
+  watch(snapMode, (v) => {
+    try { localStorage.setItem(SNAP_MODE_KEY, String(v)) } catch {}
+  })
+})
 const gridStore = useSnapGridStore()
 const sizePreset = ref<'small'|'medium'|'large'>('medium')
 const gridContainer = ref<HTMLElement | null>(null)

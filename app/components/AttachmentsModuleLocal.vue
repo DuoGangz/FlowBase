@@ -119,13 +119,64 @@ function onMouseUp() {
   resizeState.resizing = false
   if (pressTimerId.value !== null) { clearTimeout(pressTimerId.value); pressTimerId.value = null }
   if (props.snap) applySnap()
+  else {
+    // persist free-form position
+    try { localStorage.setItem(`mod.freepos:${props.uid}`, JSON.stringify({ x: position.x, y: position.y, w: size.w, h: size.h })) } catch {}
+  }
 }
 
 onMounted(() => {
   window.addEventListener('mousemove', onMouseMove)
   window.addEventListener('mouseup', onMouseUp)
-  if (props.snap) applySnap()
+  if (props.snap) {
+    const cell = gridStore.cells[props.uid]
+    if (cell) {
+      size.w = GRID.colWidth
+      size.h = GRID.rowHeight * 2
+      const px = gridStore.pxFromColRow(cell.col, cell.row)
+      position.x = px.x
+      position.y = px.y
+    } else {
+      applySnap()
+    }
+  } else {
+    try {
+      const raw = localStorage.getItem(`mod.freepos:${props.uid}`)
+      if (raw) {
+        const p = JSON.parse(raw)
+        if (typeof p?.x === 'number') position.x = p.x
+        if (typeof p?.y === 'number') position.y = p.y
+        if (typeof p?.w === 'number') size.w = p.w
+        if (typeof p?.h === 'number') size.h = p.h
+      }
+    } catch {}
+  }
   init()
+})
+watch(() => props.snap, (snap) => {
+  if (snap) {
+    size.w = GRID.colWidth
+    size.h = GRID.rowHeight * 2
+    const cell = gridStore.cells[props.uid]
+    if (cell) {
+      const px = gridStore.pxFromColRow(cell.col, cell.row)
+      position.x = px.x
+      position.y = px.y
+    } else {
+      applySnap()
+    }
+  } else {
+    try {
+      const raw = localStorage.getItem(`mod.freepos:${props.uid}`)
+      if (raw) {
+        const p = JSON.parse(raw)
+        if (typeof p?.x === 'number') position.x = p.x
+        if (typeof p?.y === 'number') position.y = p.y
+        if (typeof p?.w === 'number') size.w = p.w
+        if (typeof p?.h === 'number') size.h = p.h
+      }
+    } catch {}
+  }
 })
 onBeforeUnmount(() => {
   window.removeEventListener('mousemove', onMouseMove)
@@ -220,5 +271,4 @@ async function loadProjects() {
   } catch {}
 }
 </script>
-
 

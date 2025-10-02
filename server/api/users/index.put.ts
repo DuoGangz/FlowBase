@@ -1,5 +1,5 @@
-import { prisma } from '~~/server/utils/prisma'
 import { getCurrentUser } from '~~/server/utils/auth'
+import { getFirestore } from '~~/server/utils/firestore'
 
 type Body = { id: number; role?: 'OWNER' | 'ADMIN' | 'ADMIN_MANAGER' | 'MANAGER' | 'USER'; managerId?: number | null; name?: string; email?: string; username?: string }
 
@@ -10,20 +10,22 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<Body>(event)
   if (!body?.id) throw createError({ statusCode: 400, statusMessage: 'id required' })
 
-  // Admin can update anyone. Manager can update only subordinates and cannot elevate to ADMIN.
-  const target = await prisma.user.findUnique({ where: { id: Number(body.id) } })
-  if (!target) throw createError({ statusCode: 404, statusMessage: 'User not found' })
+  const db = getFirestore()
+  const ref = db.collection('users').doc(String(body.id))
+  const snap = await ref.get()
+  if (!snap.exists) throw createError({ statusCode: 404, statusMessage: 'User not found' })
+  const target: any = { id: snap.id, ...(snap.data() as any) }
 
   if (me.role === 'OWNER') {
-    const updated = await prisma.user.update({ where: { id: target.id }, data: { role: body.role ?? undefined, managerId: body.managerId ?? undefined, name: body.name ?? undefined, email: body.email ?? undefined, username: body.username ?? undefined } })
-    await prisma.auditLog.create({ data: { action: 'ROLE_CHANGE', actorUserId: me.id, targetUserId: updated.id, details: { from: target.role, to: updated.role, managerId: updated.managerId } } })
+    const updated = { ...target, role: body.role ?? target.role, managerId: body.managerId ?? target.managerId, name: body.name ?? target.name, email: body.email ?? target.email, username: body.username ?? target.username }
+    await ref.set(updated, { merge: true })
     return updated
   }
 
   if (me.role === 'ADMIN') {
     if (body.role === 'OWNER' || body.role === 'ADMIN_MANAGER') throw createError({ statusCode: 403, statusMessage: 'Cannot assign OWNER/ADMIN_MANAGER' })
-    const updated = await prisma.user.update({ where: { id: target.id }, data: { role: body.role ?? undefined, managerId: body.managerId ?? undefined, name: body.name ?? undefined, email: body.email ?? undefined, username: body.username ?? undefined } })
-    await prisma.auditLog.create({ data: { action: 'ROLE_CHANGE', actorUserId: me.id, targetUserId: updated.id, details: { from: target.role, to: updated.role, managerId: updated.managerId } } })
+    const updated = { ...target, role: body.role ?? target.role, managerId: body.managerId ?? target.managerId, name: body.name ?? target.name, email: body.email ?? target.email, username: body.username ?? target.username }
+    await ref.set(updated, { merge: true })
     return updated
   }
 
@@ -37,14 +39,15 @@ export default defineEventHandler(async (event) => {
     if (body.managerId !== undefined) {
       throw createError({ statusCode: 403, statusMessage: 'Managers cannot change manager assignment' })
     }
-    const updated = await prisma.user.update({ where: { id: target.id }, data: { role: body.role ?? undefined, name: body.name ?? undefined, email: body.email ?? undefined, username: body.username ?? undefined } })
-    await prisma.auditLog.create({ data: { action: 'ROLE_CHANGE', actorUserId: me.id, targetUserId: updated.id, details: { from: target.role, to: updated.role, managerId: updated.managerId } } })
+    const updated = { ...target, role: body.role ?? target.role, name: body.name ?? target.name, email: body.email ?? target.email, username: body.username ?? target.username }
+    await ref.set(updated, { merge: true })
     return updated
   }
 
   // USER cannot update others
   if (me.id !== target.id) throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
-  const updated = await prisma.user.update({ where: { id: target.id }, data: { name: body.name ?? undefined, email: body.email ?? undefined, username: body.username ?? undefined } })
+  const updated = { ...target, name: body.name ?? target.name, email: body.email ?? target.email, username: body.username ?? target.username }
+  await ref.set(updated, { merge: true })
   return updated
 })
 

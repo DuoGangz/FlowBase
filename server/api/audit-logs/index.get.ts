@@ -1,5 +1,5 @@
-import { prisma } from '~~/server/utils/prisma'
 import { getCurrentUser } from '~~/server/utils/auth'
+import { getFirestore } from '~~/server/utils/firestore'
 
 export default defineEventHandler(async (event) => {
   const me = await getCurrentUser(event)
@@ -17,15 +17,15 @@ export default defineEventHandler(async (event) => {
   if (action) where.action = action
   if (start || end) where.createdAt = { gte: start, lte: end }
 
-  const logs = await prisma.auditLog.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    take: 200,
-    include: {
-      actor: { select: { id: true, name: true } },
-      target: { select: { id: true, name: true } }
-    }
+  const db = getFirestore()
+  // Firestore: simple read of recent logs, filtering client-side for optional fields
+  const snap = await db.collection('auditLogs').orderBy('createdAt', 'desc').limit(200).get().catch(async () => {
+    return await db.collection('auditLogs').limit(200).get()
   })
+  let logs: any[] = snap.docs.map(d => d.data())
+  if (where.action) logs = logs.filter(l => l.action === where.action)
+  if (where.createdAt?.gte) logs = logs.filter(l => new Date(l.createdAt) >= where.createdAt!.gte)
+  if (where.createdAt?.lte) logs = logs.filter(l => new Date(l.createdAt) <= where.createdAt!.lte)
   if (q.format === 'csv') {
     const escape = (v: any) => {
       if (v === null || v === undefined) return ''

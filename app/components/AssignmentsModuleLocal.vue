@@ -14,9 +14,9 @@
             <input v-model="newTitle" placeholder="New task" class="border rounded px-2 h-8 text-sm w-40 md:w-48 flex-1" />
             <div class="flex flex-col">
               <label class="text-[10px] leading-none uppercase tracking-wide text-gray-500 mb-1">Employee</label>
-              <select v-model.number="assigneeId" class="border rounded px-2 h-8 text-sm min-w-[140px]">
-                <option :value="0">Select user</option>
-                <option v-for="u in filteredUsers" :key="u.id" :value="u.id">{{ u.name }}</option>
+              <select v-model="assigneeId" class="border rounded px-2 h-8 text-sm min-w-[140px]">
+                <option :value="''">Select user</option>
+                <option v-for="u in filteredUsers" :key="u.id" :value="String(u.id)">{{ u.name }}</option>
               </select>
             </div>
           </div>
@@ -117,8 +117,8 @@
 <script setup lang="ts">
 const props = defineProps<{ snap?: boolean; uid: string }>()
 import { useSnapGridStore, GRID } from '~~/stores/snapGrid'
-type User = { id:number; name:string; role:'OWNER'|'ADMIN'|'ADMIN_MANAGER'|'MANAGER'|'USER' }
-type Assignment = { id:number; title:string; assignedToId:number; dueDate?: string | null }
+type User = { id:string; name:string; role:'OWNER'|'ADMIN'|'ADMIN_MANAGER'|'MANAGER'|'USER' }
+type Assignment = { id:number; title:string; assignedToId:string; dueDate?: string | null }
 
 const gridStore = useSnapGridStore()
 function applySnap() {
@@ -166,6 +166,9 @@ function onMouseUp() {
   dragState.dragging = false
   resizeState.resizing = false
   if (props.snap) applySnap()
+  else {
+    try { localStorage.setItem(`mod.freepos:${props.uid}`, JSON.stringify({ x: position.x, y: position.y, w: size.w, h: size.h })) } catch {}
+  }
 }
 function onWrapperMouseDown(e: MouseEvent) {
   if (e.button !== 0) return
@@ -186,7 +189,54 @@ function startResize(e: MouseEvent) {
 onMounted(() => {
   window.addEventListener('mousemove', onMouseMove)
   window.addEventListener('mouseup', onMouseUp)
-  if (props.snap) applySnap()
+  if (props.snap) {
+    const cell = gridStore.cells[props.uid]
+    if (cell) {
+      size.w = GRID.colWidth
+      size.h = Math.max(GRID.rowHeight, 320)
+      const px = gridStore.pxFromColRow(cell.col, cell.row)
+      position.x = px.x
+      position.y = px.y
+    } else {
+      applySnap()
+    }
+  } else {
+    try {
+      const raw = localStorage.getItem(`mod.freepos:${props.uid}`)
+      if (raw) {
+        const p = JSON.parse(raw)
+        if (typeof p?.x === 'number') position.x = p.x
+        if (typeof p?.y === 'number') position.y = p.y
+        if (typeof p?.w === 'number') size.w = p.w
+        if (typeof p?.h === 'number') size.h = p.h
+      }
+    } catch {}
+  }
+})
+watch(() => props.snap, (snap) => {
+  if (snap) {
+    size.w = GRID.colWidth
+    size.h = Math.max(GRID.rowHeight, 320)
+    const cell = gridStore.cells[props.uid]
+    if (cell) {
+      const px = gridStore.pxFromColRow(cell.col, cell.row)
+      position.x = px.x
+      position.y = px.y
+    } else {
+      applySnap()
+    }
+  } else {
+    try {
+      const raw = localStorage.getItem(`mod.freepos:${props.uid}`)
+      if (raw) {
+        const p = JSON.parse(raw)
+        if (typeof p?.x === 'number') position.x = p.x
+        if (typeof p?.y === 'number') position.y = p.y
+        if (typeof p?.w === 'number') size.w = p.w
+        if (typeof p?.h === 'number') size.h = p.h
+      }
+    } catch {}
+  }
 })
 watch(() => gridStore.cells[props.uid], (cell) => {
   if (!props.snap || !cell) return
@@ -217,7 +267,7 @@ const me = ref<{ id:number; role:'OWNER'|'ADMIN'|'MANAGER'|'USER' } | null>(null
 const assignedToMe = ref<Assignment[]>([])
 const authored = ref<Assignment[]>([])
 const users = ref<User[]>([])
-const userMap = reactive<Record<number, User>>({})
+const userMap = reactive<Record<string, User>>({})
 const filteredUsers = computed(() => {
   if (!me.value) return [] as User[]
   if (!canAssign.value) return [] as User[]
@@ -226,14 +276,14 @@ const filteredUsers = computed(() => {
 })
 
 const newTitle = ref('')
-const assigneeId = ref(0)
+const assigneeId = ref('')
 const viewMode = ref<'me'|'authored'>('me')
 const dueDate = ref('')
 const dueTime = ref('')
 const recurrence = ref<'DAILY'|'WEEKLY'|'BI_WEEKLY'|'MONTHLY'|''>('')
 
 const canAssign = computed(() => me.value && (me.value.role === 'OWNER' || me.value.role === 'MANAGER' || me.value.role === 'ADMIN_MANAGER'))
-const canCreate = computed(() => canAssign.value && newTitle.value.trim() && assigneeId.value > 0)
+const canCreate = computed(() => canAssign.value && newTitle.value.trim() && Boolean(assigneeId.value))
 
 async function loadMe() {
   try { me.value = await $fetch('/api/auth/me') } catch { me.value = null }
@@ -242,7 +292,7 @@ async function loadMe() {
 async function loadUsers() {
   try {
     const list = await $fetch<any[]>('/api/users')
-    users.value = list.map(u => ({ id: u.id, name: u.name, role: u.role }))
+    users.value = list.map(u => ({ id: String(u.id), name: u.name, role: u.role }))
     for (const u of users.value) userMap[u.id] = u
   } catch {}
 }
@@ -267,7 +317,7 @@ async function create() {
   // Notify calendars to refresh
   try { window.dispatchEvent(new CustomEvent('assignment-created', { detail: { assignedToId: assigneeId.value } })) } catch {}
   newTitle.value = ''
-  assigneeId.value = 0
+  assigneeId.value = ''
   dueDate.value = ''
   dueTime.value = ''
   recurrence.value = ''
@@ -298,5 +348,3 @@ function fmtDate(d?: string | null) {
   } catch { return '' }
 }
 </script>
-
-

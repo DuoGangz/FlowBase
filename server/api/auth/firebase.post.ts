@@ -17,6 +17,15 @@ function ensureAdmin() {
     throw createError({ statusCode: 500, statusMessage: 'Server auth not configured. Missing Firebase Admin credentials.' })
   }
 
+  // Helpful debug in dev without leaking secrets
+  if (import.meta.dev) {
+    console.log('[Auth] Firebase Admin env present:', {
+      projectId,
+      clientEmail: Boolean(clientEmail),
+      privateKeyLen: privateKey.length
+    })
+  }
+
   if (!admin.apps.length) {
     try {
       admin.initializeApp({
@@ -27,8 +36,13 @@ function ensureAdmin() {
         })
       })
     } catch (e: any) {
-      console.error('[Auth] Failed to initialize Firebase Admin SDK:', e?.message || e)
-      throw createError({ statusCode: 500, statusMessage: 'Failed to initialize Firebase Admin SDK' })
+      const detail = e?.message || String(e)
+      console.error('[Auth] Failed to initialize Firebase Admin SDK:', detail)
+      // In dev, include the underlying error to speed up setup
+      const statusMessage = import.meta.dev
+        ? `Failed to initialize Firebase Admin SDK: ${detail}`
+        : 'Failed to initialize Firebase Admin SDK'
+      throw createError({ statusCode: 500, statusMessage })
     }
   }
   initialized = true
@@ -70,5 +84,4 @@ export default defineEventHandler(async (event) => {
   setUserSession(event, uid)
   return { ok: true, user: { id: uid, name, role } }
 })
-
 

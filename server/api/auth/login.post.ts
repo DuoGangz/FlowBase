@@ -1,4 +1,3 @@
-import { prisma } from '~~/server/utils/prisma'
 import { setUserSession } from '~~/server/utils/auth'
 
 type Body = { username: string; password: string }

@@ -1,39 +1,28 @@
-import { prisma } from '~~/server/utils/prisma'
+import { getFirestore } from '~~/server/utils/firestore'
 
 export default defineNitroPlugin(async () => {
   try {
     const enabled = process.env.SEED_OWNER_EMAIL && process.env.SEED_OWNER_PASSWORD
     if (!enabled) return
-
-    // If a user with this email already exists, skip
-    const existing = await prisma.user.findUnique({ where: { email: String(process.env.SEED_OWNER_EMAIL) } })
-    if (existing) return
-
-    // If there are any users at all, don't seed unless forced
-    const force = String(process.env.SEED_FORCE || '').toLowerCase() === 'true'
-    const userCount = await prisma.user.count()
-    if (userCount > 0 && !force) return
-
-    let account = await prisma.account.findFirst()
-    if (!account) {
-      account = await prisma.account.create({ data: { name: process.env.SEED_ACCOUNT_NAME || 'Default' } })
-    }
-
+    const db = getFirestore()
+    const email = String(process.env.SEED_OWNER_EMAIL)
+    const id = email
+    const snap = await db.collection('users').doc(id).get()
+    if (snap.exists && String(process.env.SEED_FORCE || '').toLowerCase() !== 'true') return
     const name = process.env.SEED_OWNER_NAME || 'Owner'
-    const usernameEnv = process.env.SEED_OWNER_USERNAME || (String(process.env.SEED_OWNER_EMAIL).split('@')[0])
-
-    // NOTE: Demo only - storing plaintext password to match current login flow
-    await prisma.user.create({
-      data: {
-        name,
-        email: String(process.env.SEED_OWNER_EMAIL),
-        username: usernameEnv,
-        accountId: account.id,
-        role: 'OWNER',
-        passwordHash: String(process.env.SEED_OWNER_PASSWORD)
-      }
-    })
-    console.log('[seed] OWNER user created via SEED_* envs')
+    const usernameEnv = process.env.SEED_OWNER_USERNAME || (email.split('@')[0])
+    await db.collection('users').doc(id).set({
+      id,
+      name,
+      email,
+      username: usernameEnv,
+      accountId: 1,
+      role: 'OWNER',
+      // passwordHash kept for legacy UI forms but not used by auth
+      passwordHash: String(process.env.SEED_OWNER_PASSWORD),
+      createdAt: new Date().toISOString()
+    }, { merge: true })
+    console.log('[seed] OWNER user created via Firestore SEED_* envs')
   } catch (err) {
     console.error('[seed] failed:', err)
   }

@@ -1,5 +1,5 @@
-import { prisma } from '~~/server/utils/prisma'
 import { getCurrentUser } from '~~/server/utils/auth'
+import { getFirestore } from '~~/server/utils/firestore'
 
 type Body = { name: string; email: string; username?: string; role?: 'OWNER' | 'ADMIN' | 'ADMIN_MANAGER' | 'MANAGER' | 'USER'; managerId?: number }
 
@@ -21,25 +21,21 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Only OWNER can assign ADMIN_MANAGER' })
   }
 
-  const created = await prisma.user.create({
-    data: {
-      name: body.name,
-      email: body.email,
-      username,
-      accountId: me.accountId,
-      role: requestedRole,
-      managerId: body.managerId ?? null
-    }
-  })
-  await prisma.auditLog.create({
-    data: {
-      action: 'USER_CREATE',
-      actorUserId: me.id,
-      targetUserId: created.id,
-      details: { role: created.role, managerId: created.managerId }
-    }
-  })
-  return created
+  // Firestore: create user doc with email as ID to avoid collisions
+  const db = getFirestore()
+  const id = body.email
+  const doc = {
+    id,
+    name: body.name,
+    email: body.email,
+    username,
+    accountId: me.accountId ?? 1,
+    role: requestedRole,
+    managerId: body.managerId ?? null,
+    createdAt: new Date().toISOString()
+  }
+  await db.collection('users').doc(String(id)).set(doc)
+  return doc
 })
 
 

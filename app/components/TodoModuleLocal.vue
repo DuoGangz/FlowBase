@@ -13,61 +13,62 @@
       <button class="bg-gray-800 text-white px-2 py-1 rounded-md">Add</button>
     </form>
     <ul class="space-y-2">
-      <li
-        v-for="(it, idx) in items"
-        :key="it?.id ?? idx"
-        class="space-y-1"
-        v-if="(view==='inprogress' ? !Boolean(it?.done) : Boolean(it?.done))"
-        draggable="true"
-        @dragstart="onItemDragStart(idx, $event)"
-        @dragover.prevent="onItemDragOver(idx)"
-        @drop.prevent="onItemDrop(idx)"
-        @mousedown.stop
-        :class="{ 'bg-gray-50 rounded': dragOverItemIdx===idx }"
-      >
-        <div class="flex items-center gap-2">
-          <input type="checkbox" :checked="Boolean(it?.done)" @change="(e:any)=>toggleItemCheckedLocal(idx, e?.target?.checked)" />
-          <span :class="{ 'line-through text-gray-500': Boolean(it?.done) }">{{ it?.content ?? '' }}</span>
-          <div class="ml-auto inline-flex gap-1">
-            <button class="px-2 py-0.5 border rounded text-xs" @click="moveItem(idx, -1)">↑</button>
-            <button class="px-2 py-0.5 border rounded text-xs" @click="moveItem(idx, 1)">↓</button>
+      <!-- Avoid v-if and v-for on the same element: wrap with template -->
+      <template v-for="(it, idx) in items" :key="it?.id ?? idx">
+        <li
+          class="space-y-1"
+          v-if="(view==='inprogress' ? !Boolean(it?.done) : Boolean(it?.done))"
+          draggable="true"
+          @dragstart="onItemDragStart(idx, $event)"
+          @dragover.prevent="onItemDragOver(idx)"
+          @drop.prevent="onItemDrop(idx)"
+          @mousedown.stop
+          :class="{ 'bg-gray-50 rounded': dragOverItemIdx===idx }"
+        >
+          <div class="flex items-center gap-2">
+            <input type="checkbox" :checked="Boolean(it?.done)" @change="(e:any)=>toggleItemCheckedLocal(idx, e?.target?.checked)" />
+            <span :class="{ 'line-through text-gray-500': Boolean(it?.done) }">{{ it?.content ?? '' }}</span>
+            <div class="ml-auto inline-flex gap-1">
+              <button class="px-2 py-0.5 border rounded text-xs" @click="moveItem(idx, -1)">↑</button>
+              <button class="px-2 py-0.5 border rounded text-xs" @click="moveItem(idx, 1)">↓</button>
+            </div>
           </div>
-        </div>
-        <div class="pl-6 space-y-2">
-          <ul class="space-y-1">
-            <li
-              v-for="(sub, sIdx) in visibleSubItems(it)"
-              :key="sub?.id ?? sIdx"
-              class="flex items-center gap-2 cursor-move"
-              @mousedown.stop="onSubPointerDown(idx, sIdx, $event)"
-              :ref="el => setSubRef(idx, sIdx, el as HTMLElement)"
-              :class="{ 'bg-gray-50 rounded': pointerSub.active && pointerSub.parentIdx===idx && pointerSub.overIdx===sIdx }"
+          <div class="pl-6 space-y-2">
+            <ul class="space-y-1">
+              <li
+                v-for="(sub, sIdx) in visibleSubItems(it)"
+                :key="sub?.id ?? sIdx"
+                class="flex items-center gap-2 cursor-move"
+                @mousedown.stop="onSubPointerDown(idx, sIdx, $event)"
+                :ref="el => setSubRef(idx, sIdx, el as HTMLElement)"
+                :class="{ 'bg-gray-50 rounded': pointerSub.active && pointerSub.parentIdx===idx && pointerSub.overIdx===sIdx }"
+              >
+                <input type="checkbox" :checked="Boolean(sub?.done)" @change="(e:any)=>toggleSubItemCheckedLocal(idx, sIdx, e?.target?.checked)" />
+                <span :class="{ 'line-through text-gray-400': Boolean(sub?.done) }">{{ sub?.content ?? '' }}</span>
+                <div class="ml-auto inline-flex gap-1">
+                  <button class="px-2 py-0.5 border rounded text-xs" @click="moveSubItem(idx, sIdx, -1)">↑</button>
+                  <button class="px-2 py-0.5 border rounded text-xs" @click="moveSubItem(idx, sIdx, 1)">↓</button>
+                </div>
+              </li>
+            </ul>
+            <!-- Input appears after pressing plus -->
+            <form v-if="showSubForm[idx] && !it.done" class="flex gap-2" @submit.prevent="addSubItem(idx)">
+              <input v-model="subDraft[idx]" placeholder="Add subtask" class="border rounded-md px-2 py-1 flex-1" />
+              <button class="border px-2 py-1 rounded-md">Add</button>
+            </form>
+            <!-- Plus icon always at the bottom -->
+            <button
+              v-if="!it.done"
+              type="button"
+              class="w-8 h-8 rounded-full border border-gray-300 bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center justify-center"
+              :aria-label="showSubForm[idx] ? 'Hide subtask input' : 'Add subtask'"
+              @click="toggleSubForm(idx)"
             >
-              <input type="checkbox" :checked="Boolean(sub?.done)" @change="(e:any)=>toggleSubItemCheckedLocal(idx, sIdx, e?.target?.checked)" />
-              <span :class="{ 'line-through text-gray-400': Boolean(sub?.done) }">{{ sub?.content ?? '' }}</span>
-              <div class="ml-auto inline-flex gap-1">
-                <button class="px-2 py-0.5 border rounded text-xs" @click="moveSubItem(idx, sIdx, -1)">↑</button>
-                <button class="px-2 py-0.5 border rounded text-xs" @click="moveSubItem(idx, sIdx, 1)">↓</button>
-              </div>
-            </li>
-          </ul>
-          <!-- Input appears after pressing plus -->
-          <form v-if="showSubForm[idx] && !it.done" class="flex gap-2" @submit.prevent="addSubItem(idx)">
-            <input v-model="subDraft[idx]" placeholder="Add subtask" class="border rounded-md px-2 py-1 flex-1" />
-            <button class="border px-2 py-1 rounded-md">Add</button>
-          </form>
-          <!-- Plus icon always at the bottom -->
-          <button
-            v-if="!it.done"
-            type="button"
-            class="w-8 h-8 rounded-full border border-gray-300 bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center justify-center"
-            :aria-label="showSubForm[idx] ? 'Hide subtask input' : 'Add subtask'"
-            @click="toggleSubForm(idx)"
-          >
-            <span class="text-lg leading-none">+</span>
-          </button>
-        </div>
-      </li>
+              <span class="text-lg leading-none">+</span>
+            </button>
+          </div>
+        </li>
+      </template>
     </ul>
     <div class="mt-2">
       <div class="inline-flex border rounded overflow-hidden">
@@ -177,6 +178,9 @@ function onMouseUp() {
   if (props.snap) {
     console.log(`[TODO] Calling applySnap from onMouseUp`)
     applySnap()
+  } else {
+    // Persist free-form position after drag/resize
+    saveFreePos()
   }
 }
 
@@ -239,14 +243,59 @@ function loadLocal() {
     if (data?.view === 'completed' || data?.view === 'inprogress') view.value = data.view
   } catch {}
 }
+// Free Form position persistence per module (separate from snap grid)
+function freePosKey() { return `mod.freepos:${props.uid}` }
+function saveFreePos() {
+  try { localStorage.setItem(freePosKey(), JSON.stringify({ x: position.x, y: position.y, w: size.w, h: size.h })) } catch {}
+}
+function loadFreePos() {
+  try {
+    const raw = localStorage.getItem(freePosKey())
+    if (!raw) return
+    const p = JSON.parse(raw)
+    if (typeof p?.x === 'number') position.x = p.x
+    if (typeof p?.y === 'number') position.y = p.y
+    if (typeof p?.w === 'number') size.w = p.w
+    if (typeof p?.h === 'number') size.h = p.h
+  } catch {}
+}
 
 onMounted(() => {
   window.addEventListener('mousemove', onMouseMove)
   window.addEventListener('mouseup', onMouseUp)
-  if (props.snap) applySnap()
+  // If snap mode and cell exists, use it; otherwise snap based on current free pos
+  if (props.snap) {
+    const cell = gridStore.cells[props.uid]
+    if (cell) {
+      size.w = GRID.colWidth
+      size.h = GRID.rowHeight
+      const px = gridStore.pxFromColRow(cell.col, cell.row)
+      position.x = px.x
+      position.y = px.y
+    } else {
+      applySnap()
+    }
+  } else {
+    loadFreePos()
+  }
   loadLocal()
 })
-watch(() => props.snap, () => applySnap())
+watch(() => props.snap, (snap) => {
+  if (snap) {
+    size.w = GRID.colWidth
+    size.h = GRID.rowHeight
+    const cell = gridStore.cells[props.uid]
+    if (cell) {
+      const px = gridStore.pxFromColRow(cell.col, cell.row)
+      position.x = px.x
+      position.y = px.y
+    } else {
+      applySnap()
+    }
+  } else {
+    loadFreePos()
+  }
+})
 
 watch(() => gridStore.cells[props.uid], (cell) => {
   if (!props.snap || !cell) return
@@ -498,6 +547,3 @@ function cleanupPointer() {
   saveLocal()
 }
 </script>
-
-
-
