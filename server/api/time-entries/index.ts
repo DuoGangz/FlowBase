@@ -83,8 +83,10 @@ export default defineEventHandler(async (event) => {
       .where('userId', '==', userId)
       .where('date', '>=', startIso)
       .where('date', '<=', endIso)
+      // Align with composite index (userId ASC, date DESC)
+      .orderBy('date', 'desc')
       .get()
-    const items = snap.docs.map(d => d.data()).sort((a: any, b: any) => String(b.date).localeCompare(String(a.date)))
+    const items = snap.docs.map(d => d.data())
     return items
   }
 

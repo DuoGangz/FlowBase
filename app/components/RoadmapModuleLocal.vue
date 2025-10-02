@@ -5,7 +5,23 @@
     @mousedown="onWrapperMouseDown"
   >
     <div class="flex items-center justify-between">
-      <input v-model="title" class="font-medium w-full mr-2 border-b rounded-md px-2 py-1" />
+      <div class="flex-1 min-w-0 cursor-move">
+        <span
+          v-if="!editingTitle"
+          class="font-medium inline-block mr-2 px-2 py-1 rounded hover:bg-gray-50 cursor-text truncate max-w-full"
+          @mousedown.stop
+          @click.stop="startEditTitle"
+        >{{ title }}</span>
+        <input
+          v-else
+          ref="titleInput"
+          v-model="title"
+          class="font-medium mr-2 border-b rounded-md px-2 py-1"
+          @mousedown.stop
+          @blur="stopEditTitle"
+          @keydown.enter.prevent="stopEditTitle"
+        />
+      </div>
       <button class="text-sm text-red-600" @click="$emit('remove')">Remove</button>
     </div>
 
@@ -60,6 +76,15 @@ function applySnap() {
 type Entry = { description: string; date: string }
 
 const title = ref('Road Map')
+const editingTitle = ref(false)
+const titleInput = ref<HTMLInputElement | null>(null)
+function startEditTitle() {
+  editingTitle.value = true
+  nextTick(() => titleInput.value?.focus())
+}
+function stopEditTitle() {
+  editingTitle.value = false
+}
 const description = ref('')
 const dateStr = ref('')
 const entries = ref<Entry[]>([])
@@ -128,6 +153,14 @@ const wrapperClass = computed(() => [
 ])
 
 function onMouseMove(e: MouseEvent) {
+  if (pendingDrag.value && !dragState.dragging && !resizeState.resizing) {
+    const dx = e.clientX - dragState.startX
+    const dy = e.clientY - dragState.startY
+    if (Math.hypot(dx, dy) >= DRAG_MOVE_THRESHOLD) {
+      dragState.dragging = true
+      try { gridStore.setDragActive(true) } catch {}
+    }
+  }
   if (dragState.dragging) {
     position.x = dragState.originX + (e.clientX - dragState.startX)
     position.y = dragState.originY + (e.clientY - dragState.startY)
@@ -139,7 +172,9 @@ function onMouseMove(e: MouseEvent) {
   }
 }
 function onMouseUp() {
+  pendingDrag.value = false
   dragState.dragging = false
+  try { gridStore.setDragActive(false) } catch {}
   resizeState.resizing = false
   interactive.value = true
   applySnap()
@@ -153,6 +188,7 @@ function onMouseUp() {
 }
 function startDrag(e: MouseEvent) {
   dragState.dragging = true
+  try { gridStore.setDragActive(true) } catch {}
   dragState.startX = e.clientX
   dragState.startY = e.clientY
   dragState.originX = position.x
@@ -166,18 +202,16 @@ function startResize(e: MouseEvent) {
   resizeState.originH = size.h
 }
 
-const DRAG_HOLD_MS = 200
+const DRAG_MOVE_THRESHOLD = 4
 const pressTimerId = ref<number | null>(null)
+const pendingDrag = ref(false)
 function onWrapperMouseDown(e: MouseEvent) {
   if (e.button !== 0) return
   dragState.startX = e.clientX
   dragState.startY = e.clientY
   dragState.originX = position.x
   dragState.originY = position.y
-  pressTimerId.value = window.setTimeout(() => {
-    dragState.dragging = true
-    interactive.value = false
-  }, DRAG_HOLD_MS)
+  pendingDrag.value = true
 }
 
 onMounted(() => {
@@ -260,6 +294,3 @@ onBeforeUnmount(() => {
   gridStore.release(props.uid)
 })
 </script>
-
-
-

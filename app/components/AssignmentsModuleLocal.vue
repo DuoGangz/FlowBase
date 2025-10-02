@@ -151,7 +151,18 @@ const wrapperClass = computed(() => [
   dragState.dragging ? 'select-none cursor-grabbing z-50' : 'select-text cursor-default'
 ])
 
+const DRAG_MOVE_THRESHOLD = 4
+const pendingDrag = ref(false)
+
 function onMouseMove(e: MouseEvent) {
+  if (pendingDrag.value && !dragState.dragging && !resizeState.resizing) {
+    const dx = e.clientX - dragState.startX
+    const dy = e.clientY - dragState.startY
+    if (Math.hypot(dx, dy) >= DRAG_MOVE_THRESHOLD) {
+      dragState.dragging = true
+      try { gridStore.setDragActive(true) } catch {}
+    }
+  }
   if (dragState.dragging) {
     position.x = dragState.originX + (e.clientX - dragState.startX)
     position.y = dragState.originY + (e.clientY - dragState.startY)
@@ -163,7 +174,9 @@ function onMouseMove(e: MouseEvent) {
   }
 }
 function onMouseUp() {
+  pendingDrag.value = false
   dragState.dragging = false
+  try { gridStore.setDragActive(false) } catch {}
   resizeState.resizing = false
   if (props.snap) applySnap()
   else {
@@ -172,7 +185,7 @@ function onMouseUp() {
 }
 function onWrapperMouseDown(e: MouseEvent) {
   if (e.button !== 0) return
-  dragState.dragging = true
+  pendingDrag.value = true
   dragState.startX = e.clientX
   dragState.startY = e.clientY
   dragState.originX = position.x

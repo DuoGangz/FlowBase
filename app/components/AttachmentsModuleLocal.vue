@@ -5,7 +5,23 @@
     @mousedown="onWrapperMouseDown"
   >
     <div class="flex items-center justify-between">
-      <input v-model="title" class="font-medium w-full mr-2 border-b rounded-md px-2 py-1" />
+      <div class="flex-1 min-w-0 cursor-move">
+        <span
+          v-if="!editingTitle"
+          class="font-medium inline-block mr-2 px-2 py-1 rounded hover:bg-gray-50 cursor-text truncate max-w-full"
+          @mousedown.stop
+          @click.stop="startEditTitle"
+        >{{ title }}</span>
+        <input
+          v-else
+          ref="titleInput"
+          v-model="title"
+          class="font-medium mr-2 border-b rounded-md px-2 py-1"
+          @mousedown.stop
+          @blur="stopEditTitle"
+          @keydown.enter.prevent="stopEditTitle"
+        />
+      </div>
       <div class="inline-flex items-center gap-2">
         <select v-model.number="selectedProjectId" class="border rounded px-2 py-1 text-sm" @change="load">
           <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
@@ -49,6 +65,15 @@ import { useSnapGridStore, GRID } from '~~/stores/snapGrid'
 const gridStore = useSnapGridStore()
 
 const title = ref('Attachments')
+const editingTitle = ref(false)
+const titleInput = ref<HTMLInputElement | null>(null)
+function startEditTitle() {
+  editingTitle.value = true
+  nextTick(() => titleInput.value?.focus())
+}
+function stopEditTitle() {
+  editingTitle.value = false
+}
 const scope = ref<'shared' | 'private'>('shared')
 const files = ref<any[]>([])
 const uploading = ref(false)
@@ -62,8 +87,9 @@ const position = reactive({ x: 0, y: 0 })
 const size = reactive({ w: GRID.colWidth, h: GRID.rowHeight * 2 })
 const dragState = reactive({ dragging: false, startX: 0, startY: 0, originX: 0, originY: 0 })
 const resizeState = reactive({ resizing: false, startX: 0, startY: 0, originW: 0, originH: 0 })
-const DRAG_HOLD_MS = 200
+const DRAG_MOVE_THRESHOLD = 4
 const pressTimerId = ref<number | null>(null)
+const pendingDrag = ref(false)
 
 const wrapperStyle = computed(() => ({
   width: size.w + 'px',
@@ -96,7 +122,7 @@ function onWrapperMouseDown(e: MouseEvent) {
   dragState.startY = e.clientY
   dragState.originX = position.x
   dragState.originY = position.y
-  pressTimerId.value = window.setTimeout(() => { dragState.dragging = true }, DRAG_HOLD_MS)
+  pendingDrag.value = true
 }
 function startResize(e: MouseEvent) {
   resizeState.resizing = true
@@ -106,6 +132,14 @@ function startResize(e: MouseEvent) {
   resizeState.originH = size.h
 }
 function onMouseMove(e: MouseEvent) {
+  if (pendingDrag.value && !dragState.dragging && !resizeState.resizing) {
+    const dx = e.clientX - dragState.startX
+    const dy = e.clientY - dragState.startY
+    if (Math.hypot(dx, dy) >= DRAG_MOVE_THRESHOLD) {
+      dragState.dragging = true
+      try { gridStore.setDragActive(true) } catch {}
+    }
+  }
   if (dragState.dragging) {
     position.x = dragState.originX + (e.clientX - dragState.startX)
     position.y = dragState.originY + (e.clientY - dragState.startY)
@@ -115,7 +149,9 @@ function onMouseMove(e: MouseEvent) {
   }
 }
 function onMouseUp() {
+  pendingDrag.value = false
   dragState.dragging = false
+  try { gridStore.setDragActive(false) } catch {}
   resizeState.resizing = false
   if (pressTimerId.value !== null) { clearTimeout(pressTimerId.value); pressTimerId.value = null }
   if (props.snap) applySnap()
@@ -271,4 +307,3 @@ async function loadProjects() {
   } catch {}
 }
 </script>
-

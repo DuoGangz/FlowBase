@@ -18,6 +18,7 @@ export const useSnapGridStore = defineStore('snapGrid', () => {
   const cells = ref({} as Record<string, Cell>)
   const maxCols = ref(3)
   const version = ref(0)
+  const dragActive = ref(false)
 
   function updateMaxCols(containerPx?: number) {
     const width = containerPx ?? window.innerWidth
@@ -132,11 +133,16 @@ export const useSnapGridStore = defineStore('snapGrid', () => {
     version.value++
   }
 
+  function setDragActive(active: boolean) {
+    dragActive.value = !!active
+  }
+
   return {
     cellToId,
     cells,
     maxCols,
     version,
+    dragActive,
     updateMaxCols,
     key,
     release,
@@ -146,8 +152,8 @@ export const useSnapGridStore = defineStore('snapGrid', () => {
     requestSnap,
     colRowFromPx,
     pxFromColRow,
-    setSizePreset
+    setSizePreset,
+    setDragActive
   }
 })
-
 

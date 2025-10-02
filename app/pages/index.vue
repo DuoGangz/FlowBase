@@ -75,6 +75,15 @@
       :class="snapMode ? '' : 'grid grid-cols-3 gap-4'"
       :style="snapMode ? { height: containerHeight + 'px', width: containerWidth + 'px' } : undefined"
     >
+      <!-- Snap grid overlay: shows possible drop cells while dragging -->
+      <div v-if="snapMode && gridStore.dragActive" class="absolute inset-0 pointer-events-none z-40">
+        <div
+          v-for="cell in gridCells"
+          :key="cell.key"
+          class="absolute rounded-xl bg-gray-200/60"
+          :style="{ left: cell.x + 'px', top: cell.y + 'px', width: gridColWidth + 'px', height: gridRowHeight + 'px' }"
+        />
+      </div>
       
       <component
         v-for="mod in modules"
@@ -188,6 +197,17 @@ const gridStepX = GRID.stepX
 const gridStepY = GRID.stepY
 const gridColWidth = GRID.colWidth
 const gridRowHeight = GRID.rowHeight
+const gridCells = computed(() => {
+  // depend on version to update when size preset changes
+  const _v = gridStore.version
+  const cells: { key:string; x:number; y:number }[] = []
+  for (let r = 0; r < GRID.ROWS; r++) {
+    for (let c = 0; c < GRID.COLS; c++) {
+      cells.push({ key: `${c},${r}` , x: c * GRID.stepX, y: r * GRID.stepY })
+    }
+  }
+  return cells
+})
 
 function measureContainer() {
   if (!gridContainer.value) return
