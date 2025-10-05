@@ -43,7 +43,7 @@
       />
       <button class="bg-gray-800 text-white px-3 py-1 rounded-md">Add</button>
     </form>
-    <ul class="space-y-2">
+    <ul class="space-y-2" @dragover.prevent @drop.prevent="onItemDropToEnd">
       <!-- Avoid v-if and v-for on the same element: wrap with template -->
       <template v-for="(it, idx) in items" :key="it?.id ?? idx">
         <li
@@ -87,16 +87,7 @@
               <input v-model="subDraft[idx]" placeholder="Add subtask" class="border rounded-md px-2 py-1 flex-1" />
               <button class="border px-2 py-1 rounded-md">Add</button>
             </form>
-            <!-- Plus icon always at the bottom -->
-            <button
-              v-if="!it.done"
-              type="button"
-              class="w-8 h-8 rounded-full border border-gray-300 bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center justify-center"
-              :aria-label="showSubForm[idx] ? 'Hide subtask input' : 'Add subtask'"
-              @click="toggleSubForm(idx)"
-            >
-              <span class="text-lg leading-none">+</span>
-            </button>
+            
           </div>
         </li>
       </template>
@@ -494,6 +485,19 @@ function onItemDrop(idx: number) {
   const copy = items.value.slice()
   const [moved] = copy.splice(dndState.itemIdx, 1)
   copy.splice(idx, 0, moved)
+  items.value = copy
+  dragOverItemIdx.value = null
+  dndState.type = null
+  saveLocal()
+}
+
+function onItemDropToEnd() {
+  if (dndState.type !== 'item' || dndState.itemIdx === undefined) return
+  const copy = items.value.slice()
+  const from = dndState.itemIdx
+  if (from < 0 || from >= copy.length) return
+  const [moved] = copy.splice(from, 1)
+  copy.push(moved)
   items.value = copy
   dragOverItemIdx.value = null
   dndState.type = null

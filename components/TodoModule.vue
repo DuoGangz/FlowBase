@@ -21,14 +21,14 @@
       <button class="bg-gray-800 text-white px-2 py-1 rounded">Add</button>
     </form>
 
-    <ul class="space-y-2">
+    <ul class="space-y-2" @dragover.prevent @drop.prevent="onItemDropToEnd">
       <li
         v-for="it in filteredItems"
         :key="it?.id ?? Math.random()"
-        class="space-y-1"
+        class="space-y-1 cursor-move"
         v-if="isItemRenderable(it)"
         draggable="true"
-        @dragstart="onItemDragStart(it)"
+        @dragstart="onItemDragStart(it, $event)"
         @dragover.prevent="onItemDragOver(it)"
         @drop.prevent="onItemDrop(it)"
         :class="{ 'bg-gray-50 rounded': dragOverItemId===it.id }"
@@ -66,16 +66,7 @@
             <input v-model="subItemDraft[it.id]" placeholder="Add subtask" class="border rounded px-2 py-1 flex-1" />
             <button class="border px-2 py-1 rounded">Add</button>
           </form>
-          <!-- Plus icon always rendered at the bottom (below list or input) -->
-          <button
-            v-if="!it.done"
-            type="button"
-            class="w-8 h-8 rounded-full border border-gray-300 bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center justify-center"
-            :aria-label="showSubForm[it.id] ? 'Hide subtask input' : 'Add subtask'"
-            @click="toggleSubForm(it)"
-          >
-            <span class="text-lg leading-none">+</span>
-          </button>
+          
         </div>
       </li>
     </ul>
@@ -244,9 +235,10 @@ async function moveSubItem(parent: Item, sub: SubItem, dir: 1 | -1) {
   await $fetch('/api/todo-subitems', { method: 'PUT', body: { order } })
 }
 
-function onItemDragStart(it: Item) {
+function onItemDragStart(it: Item, e?: DragEvent) {
   dragState.type = 'item'
   dragState.itemId = it.id
+  try { e?.dataTransfer?.setData('text/plain', String(it.id)) } catch {}
 }
 function onItemDragOver(it: Item) {
   dragOverItemId.value = it.id
@@ -260,6 +252,20 @@ async function onItemDrop(it: Item) {
   const copy = items.value.slice()
   const [moved] = copy.splice(fromIdx, 1)
   copy.splice(toIdx, 0, moved)
+  items.value = copy
+  dragOverItemId.value = null
+  dragState.type = null
+  const order = items.value.map((x, i) => ({ id: x.id, position: i }))
+  await $fetch('/api/todo-items', { method: 'PUT', body: { order } })
+}
+
+async function onItemDropToEnd() {
+  if (dragState.type !== 'item' || dragState.itemId === undefined) return
+  const fromIdx = items.value.findIndex(x => x.id === dragState.itemId)
+  if (fromIdx < 0) return
+  const copy = items.value.slice()
+  const [moved] = copy.splice(fromIdx, 1)
+  copy.push(moved)
   items.value = copy
   dragOverItemId.value = null
   dragState.type = null
@@ -312,8 +318,6 @@ async function onSubDropToEnd(parent: Item) {
   await $fetch('/api/todo-subitems', { method: 'PUT', body: { order } })
 }
 </script>
-
-
 
 
 
