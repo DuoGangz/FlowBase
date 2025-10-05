@@ -348,14 +348,20 @@ export const useSnapGridStore = defineStore('snapGrid', () => {
   type SizePreset = 'small' | 'medium' | 'large'
   function setSizePreset(preset: SizePreset) {
     if (preset === 'small') {
+      // Smaller cell size and 4 columns for compact layout
       GRID.colWidth = 450
       GRID.rowHeight = 300
+      GRID.COLS = 4
     } else if (preset === 'medium') {
+      // Default 3-column layout
       GRID.colWidth = 540
       GRID.rowHeight = 360
+      GRID.COLS = 3
     } else {
+      // Larger cells maintain 3 columns
       GRID.colWidth = 660
       GRID.rowHeight = 440
+      GRID.COLS = 3
     }
     // trigger consumers to update
     const cloned: Record<string, Cell> = {}

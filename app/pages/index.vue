@@ -72,7 +72,7 @@
     <div
       class="relative mx-auto"
       ref="gridContainer"
-      :class="snapMode ? '' : 'grid grid-cols-3 gap-4'"
+      :class="snapMode ? '' : gridColsClass"
       :style="snapMode ? { height: containerHeight + 'px', width: containerWidth + 'px' } : undefined"
     >
       <!-- Snap grid overlay: shows possible drop cells while dragging -->
@@ -190,6 +190,12 @@ onMounted(() => {
 const gridStore = useSnapGridStore()
 const sizePreset = ref<'small'|'medium'|'large'>('medium')
 const gridContainer = ref<HTMLElement | null>(null)
+
+// For non-snap mode, switch Tailwind grid cols based on preset
+// Explicit strings ensure Tailwind includes both utilities.
+const gridColsClass = computed(() => (
+  sizePreset.value === 'small' ? 'grid grid-cols-4 gap-4' : 'grid grid-cols-3 gap-4'
+))
 
 // Debug grid dimensions (initialize to exact pixel grid without trailing gutter)
 const containerWidth = ref(GRID.COLS * GRID.colWidth + (GRID.COLS - 1) * GRID.gutterX)
