@@ -194,18 +194,32 @@ function onMouseMove(e: MouseEvent) {
     console.log(`[TODO] onMouseMove: dragging, updating position from (${position.x}, ${position.y}) to (${newX}, ${newY})`)
     position.x = newX
     position.y = newY
-    // Proximity push: when near an occupied cell, move it out of the way
+    // Proximity push: when near an occupied cell (including neighbors), move it out of the way
     if (props.snap) {
-      const SNAP_PROXIMITY = 48
       const desired = gridStore.colRowFromPx(position.x, position.y)
-      const occupant = gridStore.cellToId[gridStore.key(desired.col, desired.row)]
-      if (occupant && occupant !== props.uid) {
-        const px = gridStore.pxFromColRow(desired.col, desired.row)
-        const dist = Math.hypot(position.x - px.x, position.y - px.y)
-        if (dist <= SNAP_PROXIMITY) {
-          // Request the cell (pushes occupant). Do not snap our position; keep free-drag.
-          gridStore.requestSnap(props.uid, desired)
+      const candidates: { col:number; row:number; dist:number }[] = []
+      const thresholdX = GRID.colWidth * 0.75
+      const thresholdY = GRID.rowHeight * 0.75
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const c = desired.col + dx
+          const r = desired.row + dy
+          if (c < 0 || c >= GRID.COLS || r < 0) continue
+          const occ = gridStore.cellToId[gridStore.key(c, r)]
+          if (!occ || occ === props.uid) continue
+          const base = gridStore.pxFromColRow(c, r)
+          const cx = base.x + GRID.colWidth / 2
+          const cy = base.y + GRID.rowHeight / 2
+          const dxp = Math.abs(position.x - cx)
+          const dyp = Math.abs(position.y - cy)
+          if (dxp <= thresholdX && dyp <= thresholdY) {
+            candidates.push({ col: c, row: r, dist: Math.hypot(dxp, dyp) })
+          }
         }
+      }
+      if (candidates.length) {
+        candidates.sort((a, b) => a.dist - b.dist)
+        gridStore.requestSnap(props.uid, { col: candidates[0].col, row: candidates[0].row })
       }
     }
   } else if (resizeState.resizing) {
