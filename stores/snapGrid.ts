@@ -371,6 +371,22 @@ export const useSnapGridStore = defineStore('snapGrid', () => {
     dragActive.value = !!active
   }
 
+  // Reset all placements; optionally seed with a mapping of id -> cell
+  function reset(mapping?: Record<string, Cell>) {
+    cellToId.value = {}
+    cells.value = {}
+    if (mapping) {
+      for (const id in mapping) {
+        const c = mapping[id]
+        if (!c) continue
+        const k = key(c.col, c.row)
+        cellToId.value[k] = id
+        cells.value[id] = { col: c.col, row: c.row }
+      }
+    }
+    version.value++
+  }
+
   return {
     cellToId,
     cells,
@@ -394,6 +410,7 @@ export const useSnapGridStore = defineStore('snapGrid', () => {
     colRowFromPx,
     pxFromColRow,
     setSizePreset,
-    setDragActive
+    setDragActive,
+    reset
   }
 })

@@ -2,7 +2,7 @@
   <div class="relative p-6 space-y-4">
     <div class="flex items-center justify-between gap-2 relative">
       <div class="w-full">
-        <div class="relative mx-auto max-w-3xl border rounded-md h-40 flex items-end justify-center bg-gray-50 overflow-hidden">
+        <div v-if="showBanner" class="relative mx-auto max-w-3xl border rounded-md h-40 flex items-end justify-center bg-gray-50 overflow-hidden">
           <img v-if="bannerUrl" :src="bannerUrl" alt="Banner" class="w-full h-full object-cover" />
           <div v-if="canEditBanner" class="absolute bottom-2 right-2">
             <button class="w-6 h-6 border rounded-full bg-white/80 hover:bg-white flex items-center justify-center" @click.stop="toggleBannerMenu" aria-label="Banner options">
@@ -16,7 +16,7 @@
           <input v-if="canEditBanner" ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileChange" />
         </div>
         <BannerCropper
-          v-if="cropFile"
+          v-if="showBanner && cropFile"
           :file="cropFile"
           :target-width="bannerWidth"
           :target-height="bannerHeight"
@@ -166,6 +166,7 @@ const meServer = ref<{ id:number; role:'OWNER'|'ADMIN'|'MANAGER'|'USER' } | null
 const bannerUrl = ref<string | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 const canEditBanner = computed(() => (meServer.value ? (meServer.value.role === 'ADMIN' || meServer.value.role === 'OWNER') : (me.role === 'ADMIN' || me.role === 'OWNER')))
+const showBanner = ref(false)
 const siteTitle = ref('Home')
 const editingTitle = ref(false)
 const titleDraft = ref('Home')
@@ -336,15 +337,17 @@ async function loadPages() {
 
 async function loadLayout(id: number) {
   const page = await $fetch<{ id:number; name:string; layout:any }>(`/api/home-pages/${id}`)
-  modules.value = Array.isArray(page.layout?.modules) ? page.layout.modules : []
-  // restore grid cell positions if saved
-  nextTick(() => {
-    for (const mod of modules.value) {
-      if (mod.cell && typeof mod.cell.col === 'number' && typeof mod.cell.row === 'number') {
-        try { gridStore.placeAt(mod.key, mod.cell.col, mod.cell.row) } catch {}
-      }
+  const incoming = Array.isArray(page.layout?.modules) ? page.layout.modules : []
+  // Seed grid placements BEFORE components mount so modules don't auto-snap and compact
+  const mapping: Record<string, { col:number; row:number }> = {}
+  for (const m of incoming) {
+    if (m?.key && m?.cell && typeof m.cell.col === 'number' && typeof m.cell.row === 'number') {
+      mapping[m.key] = { col: m.cell.col, row: m.cell.row }
     }
-  })
+  }
+  try { gridStore.reset(mapping) } catch {}
+  // Now set modules; components will read preset cells from the store on mount
+  modules.value = incoming
 }
 
 async function saveLayout() {

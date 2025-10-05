@@ -3,7 +3,7 @@
     <div class="w-full px-2 h-12 grid grid-cols-[1fr_auto_1fr] items-center">
       <div />
       <div class="flex items-center gap-4 justify-center">
-        <NuxtLink to="/" class="inline-flex items-center h-7">
+        <NuxtLink v-if="!isHome" to="/" class="inline-flex items-center h-7">
           <template v-if="!logoError">
             <img :src="logoSrc" alt="Flowbase" class="h-7" @error="onLogoError" />
           </template>
@@ -32,6 +32,8 @@ const me = ref<Me>(null)
 const logoSrc = '/logo-flowbase.png'
 const logoError = ref(false)
 function onLogoError() { logoError.value = true }
+const route = useRoute()
+const isHome = computed(() => route.path === '/')
 
 async function load() {
   try {
