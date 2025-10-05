@@ -177,6 +177,7 @@ const bannerMenuOpen = ref(false)
 const snapMode = ref(false)
 // Persist snap mode across refreshes (client-side only)
 const SNAP_MODE_KEY = 'flowbase.snapMode'
+const SIZE_PRESET_KEY = 'flowbase.sizePreset'
 onMounted(() => {
   try {
     const saved = localStorage.getItem(SNAP_MODE_KEY)
@@ -185,6 +186,20 @@ onMounted(() => {
   // Save whenever the user toggles the mode
   watch(snapMode, (v) => {
     try { localStorage.setItem(SNAP_MODE_KEY, String(v)) } catch {}
+  })
+
+  // Load saved size preset (small/medium/large) and apply
+  try {
+    const savedPreset = localStorage.getItem(SIZE_PRESET_KEY) as 'small'|'medium'|'large' | null
+    if (savedPreset === 'small' || savedPreset === 'medium' || savedPreset === 'large') {
+      sizePreset.value = savedPreset
+      gridStore.setSizePreset(savedPreset)
+      nextTick(() => measureContainer())
+    }
+  } catch {}
+  // Persist preset whenever it changes
+  watch(sizePreset, (p) => {
+    try { localStorage.setItem(SIZE_PRESET_KEY, p) } catch {}
   })
 })
 const gridStore = useSnapGridStore()
