@@ -103,8 +103,8 @@
 
     <!-- Controls -->
     <div class="fixed bottom-4 right-4 z-50 flex items-center gap-3">
-      <!-- Size preset (bottom-left of snapping per request) -->
-      <div class="fixed bottom-4 left-4">
+      <!-- Size preset (bottom-left). Hidden until hydrated to avoid SSR mismatch -->
+      <div v-if="hydrated" class="fixed bottom-4 left-4">
         <div class="inline-flex border rounded-full overflow-hidden shadow bg-white">
           <button class="px-3 py-1 text-sm" :class="sizePreset==='small' ? 'bg-black text-white' : 'text-gray-700'" @click="setPreset('small')">S</button>
           <button class="px-3 py-1 text-sm" :class="sizePreset==='medium' ? 'bg-black text-white' : 'text-gray-700'" @click="setPreset('medium')">M</button>
@@ -175,9 +175,24 @@ const bannerHeight = 256
 const cropFile = ref<File | null>(null)
 const bannerMenuOpen = ref(false)
 const snapMode = ref(false)
-// Persist snap mode across refreshes (client-side only)
+const hydrated = ref(false)
+// Persist snap mode and size preset across refreshes
 const SNAP_MODE_KEY = 'flowbase.snapMode'
 const SIZE_PRESET_KEY = 'flowbase.sizePreset'
+
+// Grid store and preset declared before mount. Initialize from localStorage
+const gridStore = useSnapGridStore()
+const initialPreset = (() => {
+  if (typeof window === 'undefined') return 'medium' as const
+  try {
+    const saved = localStorage.getItem(SIZE_PRESET_KEY) as 'small'|'medium'|'large' | null
+    return saved === 'small' || saved === 'medium' || saved === 'large' ? saved : 'medium'
+  } catch { return 'medium' as const }
+})()
+const sizePreset = ref<'small'|'medium'|'large'>(initialPreset)
+// Apply immediately so template and grid stay in sync before mount
+gridStore.setSizePreset(initialPreset)
+
 onMounted(() => {
   try {
     const saved = localStorage.getItem(SNAP_MODE_KEY)
@@ -188,22 +203,14 @@ onMounted(() => {
     try { localStorage.setItem(SNAP_MODE_KEY, String(v)) } catch {}
   })
 
-  // Load saved size preset (small/medium/large) and apply
-  try {
-    const savedPreset = localStorage.getItem(SIZE_PRESET_KEY) as 'small'|'medium'|'large' | null
-    if (savedPreset === 'small' || savedPreset === 'medium' || savedPreset === 'large') {
-      sizePreset.value = savedPreset
-      gridStore.setSizePreset(savedPreset)
-      nextTick(() => measureContainer())
-    }
-  } catch {}
+  // Ensure container recalculates after mount using current preset
+  nextTick(() => measureContainer())
   // Persist preset whenever it changes
   watch(sizePreset, (p) => {
     try { localStorage.setItem(SIZE_PRESET_KEY, p) } catch {}
   })
+  hydrated.value = true
 })
-const gridStore = useSnapGridStore()
-const sizePreset = ref<'small'|'medium'|'large'>('medium')
 const gridContainer = ref<HTMLElement | null>(null)
 
 // For non-snap mode, switch Tailwind grid cols based on preset
