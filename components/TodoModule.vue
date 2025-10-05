@@ -244,16 +244,27 @@ async function moveSubItem(parent: Item, sub: SubItem, dir: 1 | -1) {
 // Hide default drag image so there's no ghost under the pointer
 function setNoGhostDragImage(e?: DragEvent) {
   try {
-    const c = document.createElement('canvas')
-    c.width = 1; c.height = 1
-    e?.dataTransfer?.setDragImage(c, 0, 0)
+    if (!e || !e.dataTransfer) return
+    // Use a real DOM node as drag image for Safari/WebKit
+    const img = document.createElement('img')
+    img.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==' // 1x1 transparent gif
+    Object.assign(img.style, { position: 'fixed', top: '-1000px', left: '-1000px', width: '1px', height: '1px', opacity: '0' })
+    document.body.appendChild(img)
+    e.dataTransfer.setDragImage(img, 0, 0)
+    setTimeout(() => { try { img.parentNode?.removeChild(img) } catch {} }, 0)
   } catch {}
 }
 
 function onItemDragStart(it: Item, e?: DragEvent) {
   dragState.type = 'item'
   dragState.itemId = it.id
-  try { e?.dataTransfer?.setData('text/plain', String(it.id)) } catch {}
+  try {
+    if (e && e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move'
+      // Set custom MIME to avoid text/link drag icon in Safari
+      e.dataTransfer.setData('application/x-drag', String(it.id))
+    }
+  } catch {}
   setNoGhostDragImage(e)
 }
 function onItemDragOver(it: Item, e?: DragEvent) {
@@ -278,6 +289,7 @@ function onItemDragOver(it: Item, e?: DragEvent) {
   const [moved] = copy.splice(fromIdx, 1)
   copy.splice(targetIdx, 0, moved)
   items.value = copy
+  try { if (e && e.dataTransfer) e.dataTransfer.dropEffect = 'move' } catch {}
 }
 async function onItemDrop(it: Item) {
   if (dragState.type !== 'item' || dragState.itemId === undefined) return
@@ -291,7 +303,12 @@ function onSubDragStart(parent: Item, sub: SubItem, e?: DragEvent) {
   dragState.type = 'sub'
   dragState.parentId = parent.id
   dragState.subId = sub.id
-  try { e?.dataTransfer?.setData('text/plain', String(sub.id)) } catch {}
+  try {
+    if (e && e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move'
+      e.dataTransfer.setData('application/x-drag-sub', String(sub.id))
+    }
+  } catch {}
   setNoGhostDragImage(e)
 }
 function onSubDragOver(parent: Item, sub: SubItem) {

@@ -483,9 +483,13 @@ function moveSubItem(parentIdx: number, subIdx: number, dir: 1 | -1) {
 // Hide default drag image so there's no ghost under the pointer
 function setNoGhostDragImage(e?: DragEvent) {
   try {
-    const c = document.createElement('canvas')
-    c.width = 1; c.height = 1
-    e?.dataTransfer?.setDragImage(c, 0, 0)
+    if (!e || !e.dataTransfer) return
+    const img = document.createElement('img')
+    img.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=='
+    Object.assign(img.style, { position: 'fixed', top: '-1000px', left: '-1000px', width: '1px', height: '1px', opacity: '0' })
+    document.body.appendChild(img)
+    e.dataTransfer.setDragImage(img, 0, 0)
+    setTimeout(() => { try { img.parentNode?.removeChild(img) } catch {} }, 0)
   } catch {}
 }
 
@@ -493,8 +497,13 @@ function onItemDragStart(idx: number, e: DragEvent) {
   dndState.type = 'item'
   dndState.itemIdx = idx
   cancelWrapperPotentialDrag()
-  // Improve DnD fidelity in some browsers
-  try { e.dataTransfer?.setData('text/plain', String(idx)) } catch {}
+  // Hint move semantics, add custom type so Safari doesn't show 'link' icon
+  try {
+    if (e && e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move'
+      e.dataTransfer.setData('application/x-drag-local', String(idx))
+    }
+  } catch {}
   setNoGhostDragImage(e)
 }
 // Live reorder during dragover using center-aware targeting; drop just finalizes
@@ -522,6 +531,7 @@ function onItemDragOver(idx: number, e?: DragEvent) {
       dndState.itemIdx = targetIdx
     }
   }
+  try { if (e && e.dataTransfer) e.dataTransfer.dropEffect = 'move' } catch {}
   dragOverItemIdx.value = idx
 }
 
@@ -550,7 +560,8 @@ function onSubDragStart(parentIdx: number, subIdx: number, e: DragEvent) {
   dndState.parentIdx = parentIdx
   dndState.subIdx = subIdx
   cancelWrapperPotentialDrag()
-  try { e.dataTransfer?.setData('text/plain', `${parentIdx}:${subIdx}`) } catch {}
+  try { if (e && e.dataTransfer) e.dataTransfer.effectAllowed = 'move' } catch {}
+  setNoGhostDragImage(e)
 }
 function onSubListDragOver(e: DragEvent) {
   // Ensure the drop registers as a move action
