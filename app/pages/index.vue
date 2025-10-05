@@ -200,10 +200,11 @@ const gridColsClass = computed(() => (
 // Debug grid dimensions (initialize to exact pixel grid without trailing gutter)
 const containerWidth = ref(GRID.COLS * GRID.colWidth + (GRID.COLS - 1) * GRID.gutterX)
 const containerHeight = ref(GRID.ROWS * GRID.rowHeight + (GRID.ROWS - 1) * GRID.gutterY)
+// Reactive sizes for the snap overlay so gray cells match current preset
 const gridStepX = GRID.stepX
 const gridStepY = GRID.stepY
-const gridColWidth = GRID.colWidth
-const gridRowHeight = GRID.rowHeight
+const gridColWidth = computed(() => { const _v = gridStore.version; return GRID.colWidth })
+const gridRowHeight = computed(() => { const _v = gridStore.version; return GRID.rowHeight })
 const gridCells = computed(() => {
   // depend on version to update when size preset changes
   const _v = gridStore.version
