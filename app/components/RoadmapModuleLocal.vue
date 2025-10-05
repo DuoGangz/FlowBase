@@ -58,10 +58,9 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{ snap?: boolean }>()
+const props = defineProps<{ snap?: boolean; uid: string }>()
 import { useSnapGridStore, GRID } from '~~/stores/snapGrid'
 const gridStore = useSnapGridStore()
-const uid = Math.random().toString(36).slice(2)
 function roundToStep(v: number, s: number) { return Math.round(v / s) * s }
 function applySnap() {
   if (!props.snap) return
@@ -164,6 +163,14 @@ function onMouseMove(e: MouseEvent) {
   if (dragState.dragging) {
     position.x = dragState.originX + (e.clientX - dragState.startX)
     position.y = dragState.originY + (e.clientY - dragState.startY)
+    // Live snap while dragging so other modules move out of the way
+    if (props.snap) {
+      const desired = gridStore.colRowFromPx(position.x, position.y)
+      const cell = gridStore.requestSnap(props.uid, desired)
+      const px = gridStore.pxFromColRow(cell.col, cell.row)
+      position.x = px.x
+      position.y = px.y
+    }
   } else if (resizeState.resizing) {
     const nextW = Math.max(300, resizeState.originW + (e.clientX - resizeState.startX))
     const nextH = Math.max(220, resizeState.originH + (e.clientY - resizeState.startY))
@@ -281,7 +288,7 @@ watch(() => gridStore.version, () => {
   if (!props.snap) return
   size.w = GRID.colWidth
   size.h = GRID.rowHeight
-  const cell = gridStore.cells[uid]
+  const cell = gridStore.cells[props.uid]
   if (cell) {
     const px = gridStore.pxFromColRow(cell.col, cell.row)
     position.x = px.x

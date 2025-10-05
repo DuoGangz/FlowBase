@@ -166,6 +166,14 @@ function onMouseMove(e: MouseEvent) {
   if (dragState.dragging) {
     position.x = dragState.originX + (e.clientX - dragState.startX)
     position.y = dragState.originY + (e.clientY - dragState.startY)
+    // Live snap while dragging so other modules move out of the way
+    if (props.snap) {
+      const desired = gridStore.colRowFromPx(position.x, position.y)
+      const cell = gridStore.requestSnap(props.uid, desired)
+      const px = gridStore.pxFromColRow(cell.col, cell.row)
+      position.x = px.x
+      position.y = px.y
+    }
   } else if (resizeState.resizing) {
     const nextW = Math.max(300, resizeState.originW + (e.clientX - resizeState.startX))
     const nextH = Math.max(260, resizeState.originH + (e.clientY - resizeState.startY))
