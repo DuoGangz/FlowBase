@@ -194,13 +194,19 @@ function onMouseMove(e: MouseEvent) {
     console.log(`[TODO] onMouseMove: dragging, updating position from (${position.x}, ${position.y}) to (${newX}, ${newY})`)
     position.x = newX
     position.y = newY
-    // Live snap while dragging so other modules move out of the way
+    // Proximity push: when near an occupied cell, move it out of the way
     if (props.snap) {
+      const SNAP_PROXIMITY = 48
       const desired = gridStore.colRowFromPx(position.x, position.y)
-      const cell = gridStore.requestSnap(props.uid, desired)
-      const px = gridStore.pxFromColRow(cell.col, cell.row)
-      position.x = px.x
-      position.y = px.y
+      const occupant = gridStore.cellToId[gridStore.key(desired.col, desired.row)]
+      if (occupant && occupant !== props.uid) {
+        const px = gridStore.pxFromColRow(desired.col, desired.row)
+        const dist = Math.hypot(position.x - px.x, position.y - px.y)
+        if (dist <= SNAP_PROXIMITY) {
+          // Request the cell (pushes occupant). Do not snap our position; keep free-drag.
+          gridStore.requestSnap(props.uid, desired)
+        }
+      }
     }
   } else if (resizeState.resizing) {
     const nextW = Math.max(260, resizeState.originW + (e.clientX - resizeState.startX))
