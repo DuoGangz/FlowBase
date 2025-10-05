@@ -21,17 +21,18 @@
       <button class="bg-gray-800 text-white px-2 py-1 rounded">Add</button>
     </form>
 
-    <ul class="space-y-2" @dragover.prevent @drop.prevent="onItemDropToEnd">
+    <transition-group name="todo" tag="ul" class="space-y-2" @dragover.prevent @drop.prevent="onItemDropToEnd">
       <li
         v-for="it in filteredItems"
-        :key="it?.id ?? Math.random()"
+        :key="it.id"
         class="space-y-1 cursor-move"
         v-if="isItemRenderable(it)"
         draggable="true"
         @dragstart="onItemDragStart(it, $event)"
-        @dragover.prevent="onItemDragOver(it)"
+        @dragover.prevent="onItemDragOver(it, $event)"
         @drop.prevent="onItemDrop(it)"
         :class="{ 'bg-gray-50 rounded': dragOverItemId===it.id }"
+        :ref="el => setItemRef(it.id, el as HTMLElement)"
       >
         <div class="flex items-center gap-2">
           <input type="checkbox" :checked="Boolean(it?.done)" @change="(e:any)=>toggleItemChecked(it, e?.target?.checked)" />
@@ -69,8 +70,8 @@
           
         </div>
       </li>
-    </ul>
-    <div class="mt-2">
+    </transition-group>
+  <div class="mt-2">
       <div class="inline-flex border rounded overflow-hidden">
         <button class="px-2 py-1 text-xs" :class="view==='inprogress' ? 'bg-black text-white' : ''" @click="view='inprogress'">In Progress</button>
         <button class="px-2 py-1 text-xs" :class="view==='completed' ? 'bg-black text-white' : ''" @click="view='completed'">Completed</button>
@@ -102,6 +103,13 @@ const filteredItems = computed(() => {
   const arr = Array.isArray(items.value) ? items.value : []
   return arr.filter((it: any) => it && (view.value === 'inprogress' ? !Boolean(it.done) : Boolean(it.done)))
 })
+
+// Track item element refs to compute pointer position vs center to reduce jitter
+const itemEls = new Map<number, HTMLElement>()
+function setItemRef(id: number, el: HTMLElement | null) {
+  if (!el) { itemEls.delete(id); return }
+  itemEls.set(id, el)
+}
 
 onMounted(async () => {
   await init()
@@ -240,19 +248,33 @@ function onItemDragStart(it: Item, e?: DragEvent) {
   dragState.itemId = it.id
   try { e?.dataTransfer?.setData('text/plain', String(it.id)) } catch {}
 }
-function onItemDragOver(it: Item) {
+function onItemDragOver(it: Item, e?: DragEvent) {
   dragOverItemId.value = it.id
+  if (dragState.type !== 'item' || dragState.itemId === undefined || dragState.itemId === it.id) return
+  const fromIdx = items.value.findIndex(x => x.id === dragState.itemId)
+  const overIdx = items.value.findIndex(x => x.id === it.id)
+  if (fromIdx < 0 || overIdx < 0) return
+  let targetIdx = overIdx
+  const el = itemEls.get(it.id)
+  if (el && e) {
+    const r = el.getBoundingClientRect()
+    const center = r.top + r.height / 2
+    const threshold = 6 // px hysteresis to reduce flip-flop near the center
+    const delta = e.clientY - center
+    const below = delta > threshold
+    targetIdx = overIdx + (below ? 1 : 0)
+  }
+  // Account for removal index shift
+  if (targetIdx > fromIdx) targetIdx -= 1
+  if (targetIdx === fromIdx || targetIdx < 0 || targetIdx > items.value.length - 1) return
+  const copy = items.value.slice()
+  const [moved] = copy.splice(fromIdx, 1)
+  copy.splice(targetIdx, 0, moved)
+  items.value = copy
 }
 async function onItemDrop(it: Item) {
   if (dragState.type !== 'item' || dragState.itemId === undefined) return
-  if (dragState.itemId === it.id) return
-  const fromIdx = items.value.findIndex(x => x.id === dragState.itemId)
-  const toIdx = items.value.findIndex(x => x.id === it.id)
-  if (fromIdx < 0 || toIdx < 0) return
-  const copy = items.value.slice()
-  const [moved] = copy.splice(fromIdx, 1)
-  copy.splice(toIdx, 0, moved)
-  items.value = copy
+  // Persist current order (list already reorders during dragover)
   dragOverItemId.value = null
   dragState.type = null
   const order = items.value.map((x, i) => ({ id: x.id, position: i }))
@@ -319,8 +341,9 @@ async function onSubDropToEnd(parent: Item) {
 }
 </script>
 
-
-
-
-
+<style scoped>
+.todo-move {
+  transition: transform 150ms ease;
+}
+</style>
 

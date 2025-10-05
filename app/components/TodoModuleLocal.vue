@@ -43,18 +43,18 @@
       />
       <button class="bg-gray-800 text-white px-3 py-1 rounded-md">Add</button>
     </form>
-    <ul class="space-y-2" @dragover.prevent @drop.prevent="onItemDropToEnd">
-      <!-- Avoid v-if and v-for on the same element: wrap with template -->
+    <transition-group name="todo" tag="ul" class="space-y-2" @dragover.prevent @drop.prevent="onItemDropToEnd">
       <template v-for="(it, idx) in items" :key="it?.id ?? idx">
         <li
-          class="space-y-1"
+          class="space-y-1 cursor-move"
           v-if="(view==='inprogress' ? !Boolean(it?.done) : Boolean(it?.done))"
           draggable="true"
           @dragstart="onItemDragStart(idx, $event)"
-          @dragover.prevent="onItemDragOver(idx)"
+          @dragover.prevent="onItemDragOver(idx, $event)"
           @drop.prevent="onItemDrop(idx)"
           @mousedown.stop
           :class="{ 'bg-gray-50 rounded': dragOverItemIdx===idx }"
+          :ref="el => setItemRef((it?.id ?? idx) as number, el as HTMLElement)"
         >
           <div class="flex items-center gap-2">
             <input type="checkbox" :checked="Boolean(it?.done)" @change="(e:any)=>toggleItemCheckedLocal(idx, e?.target?.checked)" />
@@ -91,7 +91,7 @@
           </div>
         </li>
       </template>
-    </ul>
+    </transition-group>
     <div class="mt-2">
       <div class="inline-flex border rounded overflow-hidden">
         <button class="px-2 py-1 text-xs" :class="view==='inprogress' ? 'bg-black text-white' : ''" @click="(view='inprogress', saveLocal())">In Progress</button>
@@ -163,6 +163,12 @@ function subKey(p:number, s:number) { return `${p}:${s}` }
 function setSubRef(p:number, s:number, el: HTMLElement | null) {
   if (!el) { subItemEls.delete(subKey(p,s)); return }
   subItemEls.set(subKey(p,s), el)
+}
+// Item element refs for jitter-free drag targeting
+const itemEls = new Map<number, HTMLElement>()
+function setItemRef(id: number, el: HTMLElement | null) {
+  if (!el) { itemEls.delete(id); return }
+  itemEls.set(id, el)
 }
 
 // drag + resize state
@@ -476,16 +482,35 @@ function onItemDragStart(idx: number, e: DragEvent) {
   // Improve DnD fidelity in some browsers
   try { e.dataTransfer?.setData('text/plain', String(idx)) } catch {}
 }
-function onItemDragOver(idx: number) {
+function onItemDragOver(idx: number, e?: DragEvent) {
+  const over = items.value[idx]
+  if (dndState.type === 'item' && dndState.itemIdx !== undefined) {
+    let targetIdx = idx
+    const id = over?.id ?? idx
+    const el = itemEls.get(id)
+    if (el && e) {
+      const r = el.getBoundingClientRect()
+      const center = r.top + r.height / 2
+      const threshold = 6
+      const delta = e.clientY - center
+      const below = delta > (delta === 0 ? 0 : Math.sign(delta) * threshold)
+      targetIdx = idx + (below ? 1 : 0)
+    }
+    const fromIdx = dndState.itemIdx
+    if (targetIdx > fromIdx) targetIdx -= 1
+    if (targetIdx !== fromIdx && targetIdx >= 0 && targetIdx <= items.value.length - 1) {
+      const copy = items.value.slice()
+      const [moved] = copy.splice(fromIdx, 1)
+      copy.splice(targetIdx, 0, moved)
+      items.value = copy
+      dndState.itemIdx = targetIdx
+    }
+  }
   dragOverItemIdx.value = idx
 }
 function onItemDrop(idx: number) {
   if (dndState.type !== 'item' || dndState.itemIdx === undefined) return
-  if (dndState.itemIdx === idx) return
-  const copy = items.value.slice()
-  const [moved] = copy.splice(dndState.itemIdx, 1)
-  copy.splice(idx, 0, moved)
-  items.value = copy
+  // Order already updated live during dragover; just finalize
   dragOverItemIdx.value = null
   dndState.type = null
   saveLocal()
@@ -639,3 +664,7 @@ function cleanupPointer() {
   saveLocal()
 }
 </script>
+
+<style scoped>
+.todo-move { transition: transform 150ms ease; }
+</style>
