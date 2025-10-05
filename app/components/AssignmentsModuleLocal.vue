@@ -160,7 +160,7 @@ function onMouseMove(e: MouseEvent) {
     const dy = e.clientY - dragState.startY
     if (Math.hypot(dx, dy) >= DRAG_MOVE_THRESHOLD) {
       dragState.dragging = true
-      try { gridStore.setDragActive(true) } catch {}
+      try { gridStore.setDragActive(true); gridStore.startPreview(props.uid) } catch {}
     }
   }
   if (dragState.dragging) {
@@ -169,29 +169,25 @@ function onMouseMove(e: MouseEvent) {
     // Proximity push: when near an occupied cell (including neighbors), move it out of the way
     if (props.snap) {
       const desired = gridStore.colRowFromPx(position.x, position.y)
-      const candidates: { col:number; row:number; dist:number }[] = []
-      const thresholdX = GRID.colWidth * 0.75
-      const thresholdY = GRID.rowHeight * 0.75
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          const c = desired.col + dx
-          const r = desired.row + dy
-          if (c < 0 || c >= GRID.COLS || r < 0) continue
-          const occ = gridStore.cellToId[gridStore.key(c, r)]
-          if (!occ || occ === props.uid) continue
-          const base = gridStore.pxFromColRow(c, r)
-          const cx = base.x + GRID.colWidth / 2
-          const cy = base.y + GRID.rowHeight / 2
-          const dxp = Math.abs(position.x - cx)
-          const dyp = Math.abs(position.y - cy)
-          if (dxp <= thresholdX && dyp <= thresholdY) {
-            candidates.push({ col: c, row: r, dist: Math.hypot(dxp, dyp) })
-          }
-        }
-      }
-      if (candidates.length) {
-        candidates.sort((a, b) => a.dist - b.dist)
-        gridStore.requestSnap(props.uid, { col: candidates[0].col, row: candidates[0].row })
+      const base = gridStore.pxFromColRow(desired.col, desired.row)
+      const cx = base.x + GRID.colWidth / 2
+      const cy = base.y + GRID.rowHeight / 2
+      const dxp = position.x - cx
+      const dyp = position.y - cy
+      const approach = Math.abs(dxp) >= Math.abs(dyp) ? (dxp < 0 ? 'right' : 'left') : (dyp < 0 ? 'down' : 'up')
+      const occ = gridStore.cellToId[gridStore.key(desired.col, desired.row)]
+      const enterX = GRID.colWidth * 0.75
+      const enterY = GRID.rowHeight * 0.75
+      const keepX = GRID.colWidth * 0.35
+      const keepY = GRID.rowHeight * 0.35
+      const meta = gridStore.getPreviewMeta()
+      const sameTarget = !!meta.target && meta.target.col === desired.col && meta.target.row === desired.row && meta.actorId === props.uid && meta.active
+      if (Math.abs(dxp) <= enterX && Math.abs(dyp) <= enterY) {
+        gridStore.updatePreview(props.uid, desired.col, desired.row, approach as any)
+      } else if (sameTarget && Math.abs(dxp) <= keepX && Math.abs(dyp) <= keepY) {
+        gridStore.updatePreview(props.uid, desired.col, desired.row, approach as any)
+      } else {
+        gridStore.updatePreview(props.uid)
       }
     }
   } else if (resizeState.resizing) {
@@ -206,8 +202,13 @@ function onMouseUp() {
   dragState.dragging = false
   try { gridStore.setDragActive(false) } catch {}
   resizeState.resizing = false
-  if (props.snap) applySnap()
-  else {
+  if (props.snap) {
+    const desired = gridStore.colRowFromPx(position.x, position.y)
+    const cell = gridStore.commitPreviewPlacement(props.uid, desired)
+    const px = gridStore.pxFromColRow(cell.col, cell.row)
+    position.x = px.x
+    position.y = px.y
+  } else {
     try { localStorage.setItem(`mod.freepos:${props.uid}`, JSON.stringify({ x: position.x, y: position.y, w: size.w, h: size.h })) } catch {}
   }
 }
