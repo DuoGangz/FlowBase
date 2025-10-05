@@ -42,14 +42,18 @@
     </form>
     <ul class="space-y-1">
       <li v-for="f in files" :key="f.id" class="flex items-center gap-2">
-        <div class="w-6 h-6 flex items-center justify-center rounded border overflow-hidden bg-gray-50 shrink-0">
+        <!-- Make the thumbnail itself the clickable area (only within the square) -->
+        <a :href="f.path" target="_blank" class="w-6 h-6 flex items-center justify-center rounded border overflow-hidden bg-gray-50 shrink-0" :title="fileName(f.path)">
           <img v-if="isImage(f)" :src="f.path" alt="preview" class="w-full h-full object-cover" />
           <div v-else class="w-full h-full flex items-center justify-center select-none" :class="iconClass(f)">
             <span class="text-[8px] font-semibold uppercase">{{ fileExt(f.path) }}</span>
           </div>
-        </div>
+        </a>
         <div class="min-w-0 flex-1">
-          <a class="text-blue-600 underline block truncate" :href="f.path" target="_blank" :title="fileName(f.path)">{{ fileName(f.path) }}</a>
+          <!-- Only the text itself is clickable; whitespace to the right is not -->
+          <span class="block truncate">
+            <a class="text-blue-600 underline inline" :href="f.path" target="_blank" :title="fileName(f.path)">{{ fileName(f.path) }}</a>
+          </span>
           <span class="text-gray-400 text-xs" v-if="sizeOf(f)">({{ sizeOf(f) }})</span>
         </div>
         <button class="text-red-600 text-sm ml-2" @click="remove(f)">Delete</button>
