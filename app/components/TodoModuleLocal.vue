@@ -5,10 +5,10 @@
     @mousedown="onWrapperMouseDown"
   >
     <div class="flex items-center justify-between">
-      <div class="flex-1 min-w-0 cursor-move">
+      <div class="flex items-center gap-2 flex-1 min-w-0 cursor-move">
         <span
           v-if="!editingTitle"
-          class="font-medium inline-block mr-2 px-2 py-1 rounded hover:bg-gray-50 cursor-text truncate max-w-full"
+          class="font-medium inline-block px-1 py-0.5 rounded cursor-text truncate max-w-full"
           @mousedown.stop
           @click.stop="startEditTitle"
         >{{ title }}</span>
@@ -21,12 +21,27 @@
           @blur="stopEditTitle"
           @keydown.enter.prevent="stopEditTitle"
         />
+        <!-- Add button: white + next to title -->
+        <button
+          type="button"
+          class="w-7 h-7 rounded-md bg-black text-white flex items-center justify-center hover:opacity-90"
+          title="Add todo"
+          @mousedown.stop
+          @click.stop="toggleAddForm"
+        >
+          +
+        </button>
       </div>
       <button class="text-sm text-red-600" @click="$emit('remove')">Remove</button>
     </div>
-    <form class="flex gap-2" @submit.prevent="addItem">
-      <input v-model="newItem" placeholder="Add item" class="border rounded-md px-2 py-1 flex-1" />
-      <button class="bg-gray-800 text-white px-2 py-1 rounded-md">Add</button>
+    <form v-if="showAdd" class="flex gap-2" @submit.prevent="addItem">
+      <input
+        ref="newItemInput"
+        v-model="newItem"
+        placeholder="Add item"
+        class="border rounded-md px-2 py-1 flex-1"
+      />
+      <button class="bg-gray-800 text-white px-3 py-1 rounded-md">Add</button>
     </form>
     <ul class="space-y-2">
       <!-- Avoid v-if and v-for on the same element: wrap with template -->
@@ -125,6 +140,8 @@ function applySnap() {
 const title = ref('Todo List')
 const editingTitle = ref(false)
 const titleInput = ref<HTMLInputElement | null>(null)
+const showAdd = ref(false)
+const newItemInput = ref<HTMLInputElement | null>(null)
 function startEditTitle() {
   editingTitle.value = true
   nextTick(() => titleInput.value?.focus())
@@ -283,6 +300,13 @@ function onWrapperMouseDown(e: MouseEvent) {
   pendingDrag.value = true
 }
 
+function toggleAddForm() {
+  showAdd.value = !showAdd.value
+  if (showAdd.value) {
+    nextTick(() => newItemInput.value?.focus())
+  }
+}
+
 function cancelWrapperPotentialDrag() {
   pendingDrag.value = false
   if (pressTimerId.value !== null) { clearTimeout(pressTimerId.value); pressTimerId.value = null }
@@ -391,6 +415,7 @@ function addItem() {
   if (!newItem.value) return
   items.value.push({ id: Date.now(), content: newItem.value, done: false, subItems: [] })
   newItem.value = ''
+  showAdd.value = false
   saveLocal()
 }
 

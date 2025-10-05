@@ -1,11 +1,22 @@
 <template>
   <div class="border rounded p-4 space-y-3">
     <div class="flex items-center justify-between">
-      <h3 class="font-medium">{{ title }}</h3>
+      <div class="flex items-center gap-2">
+        <h3 class="font-medium">{{ title }}</h3>
+        <!-- Add button: black bg with white plus -->
+        <button
+          type="button"
+          class="w-7 h-7 rounded-md bg-black text-white flex items-center justify-center hover:opacity-90"
+          title="Add todo"
+          @click="toggleAddForm"
+        >
+          +
+        </button>
+      </div>
       <button class="text-sm text-red-600" @click="$emit('remove')">Remove</button>
     </div>
 
-    <form class="flex gap-2" @submit.prevent="addItem">
+    <form v-if="showAdd" class="flex gap-2" @submit.prevent="addItem">
       <input v-model="newItem" placeholder="Add item" class="border rounded px-2 py-1 flex-1" />
       <button class="bg-gray-800 text-white px-2 py-1 rounded">Add</button>
     </form>
@@ -90,6 +101,7 @@ const newItem = ref('')
 const listId = ref<number | null>(props.listId ?? null)
 const subItemDraft = reactive<Record<number, string>>({})
 const showSubForm = reactive<Record<number, boolean>>({})
+const showAdd = ref(false)
 const dragState = reactive<{ type:'item'|'sub'|null; itemId?:number; subId?:number; parentId?:number }>({ type: null })
 const dragOverItemId = ref<number | null>(null)
 const dragOverParentId = ref<number | null>(null)
@@ -150,6 +162,7 @@ async function addItem() {
   if (!newItem.value || !listId.value) return
   await $fetch('/api/todo-items', { method: 'POST', body: { todoId: listId.value, content: newItem.value } })
   newItem.value = ''
+  showAdd.value = false
   await load()
 }
 
@@ -201,6 +214,10 @@ async function toggleSubItemChecked(sub: any, checked: boolean) {
   if (!sub || typeof sub.id !== 'number') return
   sub.done = Boolean(checked)
   await $fetch('/api/todo-subitems', { method: 'PUT', body: { id: sub.id, done: sub.done } })
+}
+
+function toggleAddForm() {
+  showAdd.value = !showAdd.value
 }
 
 function reorder<T extends { id:number }>(arr: T[], id: number, dir: 1 | -1) {
@@ -295,9 +312,6 @@ async function onSubDropToEnd(parent: Item) {
   await $fetch('/api/todo-subitems', { method: 'PUT', body: { order } })
 }
 </script>
-
-
-
 
 
 
