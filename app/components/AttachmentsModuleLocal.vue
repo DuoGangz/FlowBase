@@ -2,6 +2,7 @@
   <div
     :class="wrapperClass"
     :style="wrapperStyle"
+    @mousedown.capture="onActivate"
     @mousedown="onWrapperMouseDown"
   >
     <div class="flex items-center justify-between">
@@ -71,7 +72,8 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{ snap?: boolean; uid: string; projectId?: number }>()
+const props = defineProps<{ snap?: boolean; uid: string; projectId?: number; active?: boolean }>()
+const emit = defineEmits(['remove','activate'])
 import { useSnapGridStore, GRID } from '~~/stores/snapGrid'
 const gridStore = useSnapGridStore()
 
@@ -112,7 +114,8 @@ const wrapperStyle = computed(() => ({
   boxSizing: 'border-box'
 }))
 const wrapperClass = computed(() => [
-  'border rounded-2xl p-2 space-y-2 shadow bg-white overflow-hidden',
+  'border rounded-2xl p-2 space-y-2 shadow bg-white overflow-hidden z-20',
+  props.active ? 'ring-2 ring-blue-300' : '',
   dragState.dragging ? 'select-none cursor-grabbing z-50' : 'select-text cursor-default'
 ])
 
@@ -135,6 +138,7 @@ function onWrapperMouseDown(e: MouseEvent) {
   dragState.originY = position.y
   pendingDrag.value = true
 }
+function onActivate() { emit('activate') }
 function startResize(e: MouseEvent) {
   resizeState.resizing = true
   resizeState.startX = e.clientX

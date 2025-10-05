@@ -76,7 +76,8 @@
       :style="snapMode ? { height: containerHeight + 'px', width: containerWidth + 'px' } : undefined"
     >
       <!-- Snap grid overlay: shows possible drop cells while dragging -->
-      <div v-if="snapMode && gridStore.dragActive" class="absolute inset-0 pointer-events-none z-40">
+      <!-- Keep overlay below modules so existing cards stay on top -->
+      <div v-if="snapMode && gridStore.dragActive" class="absolute inset-0 pointer-events-none z-10">
         <div
           v-for="cell in gridCells"
           :key="cell.key"
@@ -96,8 +97,10 @@
           mod.type === 'assignments' ? AssignmentsModuleLocal : AttachmentsModuleLocal
         "
         :snap="snapMode"
+        :active="activeKey===mod.key"
         :uid="mod.key"
         @remove="removeModule(mod.key)"
+        @activate="activeKey=mod.key"
       />
     </div>
 
@@ -160,6 +163,7 @@ const pages = ref<{ id:number; name:string; isDefault:boolean; mine?: boolean }[
 const currentPageId = ref<number | null>(null)
 const showCreateModal = ref(false)
 const newPageName = ref('')
+const activeKey = ref<string | null>(null)
 
 const me = useUserStore()
 const meServer = ref<{ id:number; role:'OWNER'|'ADMIN'|'MANAGER'|'USER' } | null>(null)

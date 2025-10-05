@@ -2,6 +2,7 @@
   <div
     :class="wrapperClass"
     :style="wrapperStyle"
+    @mousedown.capture="onActivate"
     @mousedown="onWrapperMouseDown"
   >
     <div class="flex items-center justify-between">
@@ -109,7 +110,8 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{ snap?: boolean; uid: string }>()
+const props = defineProps<{ snap?: boolean; uid: string; active?: boolean }>()
+const emit = defineEmits(['remove','activate'])
 
 // Snap grid config (invisible): 2 columns x 3 rows style
 import { useSnapGridStore, GRID } from '~~/stores/snapGrid'
@@ -188,7 +190,8 @@ const wrapperStyle = computed(() => ({
 }))
 
 const wrapperClass = computed(() => [
-  'border rounded-2xl p-2 space-y-2 shadow bg-white overflow-hidden',
+  'border rounded-2xl p-2 space-y-2 shadow bg-white overflow-hidden z-20',
+  props.active ? 'ring-2 ring-blue-300' : '',
   dragState.dragging ? 'select-none cursor-grabbing z-50' : 'select-text cursor-default'
 ])
 
@@ -296,6 +299,8 @@ function onWrapperMouseDown(e: MouseEvent) {
   dragState.originY = position.y
   pendingDrag.value = true
 }
+
+function onActivate() { emit('activate') }
 
 function toggleAddForm() {
   showAdd.value = !showAdd.value
@@ -475,13 +480,24 @@ function moveSubItem(parentIdx: number, subIdx: number, dir: 1 | -1) {
   saveLocal()
 }
 
+// Hide default drag image so there's no ghost under the pointer
+function setNoGhostDragImage(e?: DragEvent) {
+  try {
+    const c = document.createElement('canvas')
+    c.width = 1; c.height = 1
+    e?.dataTransfer?.setDragImage(c, 0, 0)
+  } catch {}
+}
+
 function onItemDragStart(idx: number, e: DragEvent) {
   dndState.type = 'item'
   dndState.itemIdx = idx
   cancelWrapperPotentialDrag()
   // Improve DnD fidelity in some browsers
   try { e.dataTransfer?.setData('text/plain', String(idx)) } catch {}
+  setNoGhostDragImage(e)
 }
+// Live reorder during dragover using center-aware targeting; drop just finalizes
 function onItemDragOver(idx: number, e?: DragEvent) {
   const over = items.value[idx]
   if (dndState.type === 'item' && dndState.itemIdx !== undefined) {
@@ -493,7 +509,7 @@ function onItemDragOver(idx: number, e?: DragEvent) {
       const center = r.top + r.height / 2
       const threshold = 6
       const delta = e.clientY - center
-      const below = delta > (delta === 0 ? 0 : Math.sign(delta) * threshold)
+      const below = delta > threshold
       targetIdx = idx + (below ? 1 : 0)
     }
     const fromIdx = dndState.itemIdx
@@ -508,14 +524,13 @@ function onItemDragOver(idx: number, e?: DragEvent) {
   }
   dragOverItemIdx.value = idx
 }
+
 function onItemDrop(idx: number) {
   if (dndState.type !== 'item' || dndState.itemIdx === undefined) return
-  // Order already updated live during dragover; just finalize
   dragOverItemIdx.value = null
   dndState.type = null
   saveLocal()
 }
-
 function onItemDropToEnd() {
   if (dndState.type !== 'item' || dndState.itemIdx === undefined) return
   const copy = items.value.slice()
@@ -528,6 +543,7 @@ function onItemDropToEnd() {
   dndState.type = null
   saveLocal()
 }
+// transition-group approach reorders live; drop finalizes via onItemDrop/End
 
 function onSubDragStart(parentIdx: number, subIdx: number, e: DragEvent) {
   dndState.type = 'sub'

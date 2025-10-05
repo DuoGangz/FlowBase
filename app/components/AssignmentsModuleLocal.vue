@@ -2,6 +2,7 @@
   <div
     :class="wrapperClass"
     :style="wrapperStyle"
+    @mousedown.capture="onActivate"
     @mousedown="onWrapperMouseDown"
   >
     <div class="space-y-2 relative">
@@ -115,7 +116,8 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{ snap?: boolean; uid: string }>()
+const props = defineProps<{ snap?: boolean; uid: string; active?: boolean }>()
+const emit = defineEmits(['remove','activate'])
 import { useSnapGridStore, GRID } from '~~/stores/snapGrid'
 type User = { id:string; name:string; role:'OWNER'|'ADMIN'|'ADMIN_MANAGER'|'MANAGER'|'USER' }
 type Assignment = { id:number; title:string; assignedToId:string; dueDate?: string | null }
@@ -147,7 +149,8 @@ const wrapperStyle = computed(() => ({
   boxSizing: 'border-box'
 }))
 const wrapperClass = computed(() => [
-  'border rounded-2xl p-2 shadow bg-white overflow-x-hidden overflow-y-auto relative',
+  'border rounded-2xl p-2 shadow bg-white overflow-x-hidden overflow-y-auto relative z-20',
+  props.active ? 'ring-2 ring-blue-300' : '',
   dragState.dragging ? 'select-none cursor-grabbing z-50' : 'select-text cursor-default'
 ])
 
@@ -220,6 +223,7 @@ function onWrapperMouseDown(e: MouseEvent) {
   dragState.originX = position.x
   dragState.originY = position.y
 }
+function onActivate() { emit('activate') }
 function startResize(e: MouseEvent) {
   resizeState.resizing = true
   resizeState.startX = e.clientX
@@ -235,7 +239,8 @@ onMounted(() => {
     const cell = gridStore.cells[props.uid]
     if (cell) {
       size.w = GRID.colWidth
-      size.h = Math.max(GRID.rowHeight, 320)
+      // Match other modules: do not exceed grid row height
+      size.h = GRID.rowHeight
       const px = gridStore.pxFromColRow(cell.col, cell.row)
       position.x = px.x
       position.y = px.y
@@ -258,7 +263,7 @@ onMounted(() => {
 watch(() => props.snap, (snap) => {
   if (snap) {
     size.w = GRID.colWidth
-    size.h = Math.max(GRID.rowHeight, 320)
+    size.h = GRID.rowHeight
     const cell = gridStore.cells[props.uid]
     if (cell) {
       const px = gridStore.pxFromColRow(cell.col, cell.row)
@@ -284,7 +289,7 @@ watch(() => gridStore.cells[props.uid], (cell) => {
   if (!props.snap || !cell) return
   if (dragState.dragging || resizeState.resizing) return
   size.w = GRID.colWidth
-  size.h = Math.max(GRID.rowHeight, 320)
+  size.h = GRID.rowHeight
   const px = gridStore.pxFromColRow(cell.col, cell.row)
   position.x = px.x
   position.y = px.y
@@ -292,7 +297,7 @@ watch(() => gridStore.cells[props.uid], (cell) => {
 watch(() => gridStore.version, () => {
   if (!props.snap) return
   size.w = GRID.colWidth
-  size.h = Math.max(GRID.rowHeight, 320)
+  size.h = GRID.rowHeight
   const cell = gridStore.cells[props.uid]
   if (cell) {
     const px = gridStore.pxFromColRow(cell.col, cell.row)

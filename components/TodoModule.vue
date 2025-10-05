@@ -21,59 +21,54 @@
       <button class="bg-gray-800 text-white px-2 py-1 rounded">Add</button>
     </form>
 
-    <Draggable
-      v-model="items"
-      item-key="id"
-      class="space-y-2"
-      :animation="200"
-      ghost-class="drag-ghost"
-      chosen-class="drag-chosen"
-      drag-class="drag-dragging"
-      :force-fallback="true"
-      :fallbackOnBody="true"
-      :swapThreshold="0.6"
-      filter="input,button,textarea,[contenteditable],.no-drag"
-      :preventOnFilter="false"
-      @end="onItemsDragEnd"
-    >
-      <template #item="{ element: it }">
-        <li class="space-y-1 cursor-move" v-if="isItemRenderable(it)">
-          <div class="flex items-center gap-2">
-            <input type="checkbox" :checked="Boolean(it?.done)" @change="(e:any)=>toggleItemChecked(it, e?.target?.checked)" />
-            <span :class="{ 'line-through text-gray-500': Boolean(it?.done) }">{{ it?.content ?? '' }}</span>
-            <div class="ml-auto inline-flex gap-1">
-              <button class="px-2 py-0.5 border rounded text-xs" @click="moveItem(it, -1)">↑</button>
-              <button class="px-2 py-0.5 border rounded text-xs" @click="moveItem(it, 1)">↓</button>
-            </div>
+    <transition-group name="todo" tag="ul" class="space-y-2" @dragover.prevent @drop.prevent="onItemDropToEnd">
+      <li
+        v-for="it in filteredItems"
+        :key="it.id"
+        class="space-y-1 cursor-move"
+        v-if="isItemRenderable(it)"
+        draggable="true"
+        @dragstart="onItemDragStart(it, $event)"
+        @dragover.prevent="onItemDragOver(it, $event)"
+        @drop.prevent="onItemDrop(it)"
+        :class="{ 'bg-gray-50 rounded': dragOverItemId===it.id }"
+        :ref="el => setItemRef(it.id, el as HTMLElement)"
+      >
+        <div class="flex items-center gap-2">
+          <input type="checkbox" :checked="Boolean(it?.done)" @change="(e:any)=>toggleItemChecked(it, e?.target?.checked)" />
+          <span :class="{ 'line-through text-gray-500': Boolean(it?.done) }">{{ it?.content ?? '' }}</span>
+          <div class="ml-auto inline-flex gap-1">
+            <button class="px-2 py-0.5 border rounded text-xs" @click="moveItem(it, -1)">↑</button>
+            <button class="px-2 py-0.5 border rounded text-xs" @click="moveItem(it, 1)">↓</button>
           </div>
-          <div class="pl-6 space-y-2" v-if="Array.isArray(it.subItems)">
-            <ul class="space-y-1" v-if="Array.isArray(it.subItems)" @dragover.prevent @drop.prevent="onSubDropToEnd(it)">
-              <li
-                v-for="sub in visibleSubItemsFiltered(it)"
-                :key="sub?.id ?? Math.random()"
-                class="flex items-center gap-2"
-                draggable="true"
-                @dragstart="onSubDragStart(it, sub, $event)"
-                @dragover.prevent="onSubDragOver(it, sub)"
-                @drop.prevent="onSubDrop(it, sub)"
-                :class="{ 'bg-gray-50 rounded': dragOverSubId===sub.id && dragOverParentId===it.id }"
-              >
-                <input type="checkbox" :checked="Boolean(sub?.done)" @change="(e:any)=>toggleSubItemChecked(sub, e?.target?.checked)" />
-                <span :class="{ 'line-through text-gray-400': Boolean(sub?.done) }">{{ sub?.content ?? '' }}</span>
-                <div class="ml-auto inline-flex gap-1">
-                  <button class="px-2 py-0.5 border rounded text-xs" @click="moveSubItem(it, sub, -1)">↑</button>
-                  <button class="px-2 py-0.5 border rounded text-xs" @click="moveSubItem(it, sub, 1)">↓</button>
-                </div>
-              </li>
-            </ul>
-            <form v-if="showSubForm[it.id] && !it.done" class="flex gap-2" @submit.prevent="addSubItem(it)">
-              <input v-model="subItemDraft[it.id]" placeholder="Add subtask" class="border rounded px-2 py-1 flex-1" />
-              <button class="border px-2 py-1 rounded">Add</button>
-            </form>
-          </div>
-        </li>
-      </template>
-    </Draggable>
+        </div>
+        <div class="pl-6 space-y-2" v-if="Array.isArray(it.subItems)">
+          <ul class="space-y-1" v-if="Array.isArray(it.subItems)" @dragover.prevent @drop.prevent="onSubDropToEnd(it)">
+            <li
+              v-for="sub in visibleSubItemsFiltered(it)"
+              :key="sub?.id ?? Math.random()"
+              class="flex items-center gap-2"
+              draggable="true"
+              @dragstart="onSubDragStart(it, sub, $event)"
+              @dragover.prevent="onSubDragOver(it, sub)"
+              @drop.prevent="onSubDrop(it, sub)"
+              :class="{ 'bg-gray-50 rounded': dragOverSubId===sub.id && dragOverParentId===it.id }"
+            >
+              <input type="checkbox" :checked="Boolean(sub?.done)" @change="(e:any)=>toggleSubItemChecked(sub, e?.target?.checked)" />
+              <span :class="{ 'line-through text-gray-400': Boolean(sub?.done) }">{{ sub?.content ?? '' }}</span>
+              <div class="ml-auto inline-flex gap-1">
+                <button class="px-2 py-0.5 border rounded text-xs" @click="moveSubItem(it, sub, -1)">↑</button>
+                <button class="px-2 py-0.5 border rounded text-xs" @click="moveSubItem(it, sub, 1)">↓</button>
+              </div>
+            </li>
+          </ul>
+          <form v-if="showSubForm[it.id] && !it.done" class="flex gap-2" @submit.prevent="addSubItem(it)">
+            <input v-model="subItemDraft[it.id]" placeholder="Add subtask" class="border rounded px-2 py-1 flex-1" />
+            <button class="border px-2 py-1 rounded">Add</button>
+          </form>
+        </div>
+      </li>
+    </transition-group>
   <div class="mt-2">
       <div class="inline-flex border rounded overflow-hidden">
         <button class="px-2 py-1 text-xs" :class="view==='inprogress' ? 'bg-black text-white' : ''" @click="view='inprogress'">In Progress</button>
@@ -84,7 +79,6 @@
 </template>
 
 <script setup lang="ts">
-import Draggable from 'vuedraggable'
 const props = defineProps<{ projectId: number; listId?: number; title?: string }>()
 const emit = defineEmits<{ (e:'created', listId:number):void; (e:'remove'):void }>()
 
@@ -108,7 +102,7 @@ const filteredItems = computed(() => {
   return arr.filter((it: any) => it && (view.value === 'inprogress' ? !Boolean(it.done) : Boolean(it.done)))
 })
 
-// Track item element refs to compute pointer position vs center to reduce jitter
+// Track item element refs for center-aware dragover targeting to reduce jitter
 const itemEls = new Map<number, HTMLElement>()
 function setItemRef(id: number, el: HTMLElement | null) {
   if (!el) { itemEls.delete(id); return }
@@ -247,10 +241,20 @@ async function moveSubItem(parent: Item, sub: SubItem, dir: 1 | -1) {
   await $fetch('/api/todo-subitems', { method: 'PUT', body: { order } })
 }
 
+// Hide default drag image so there's no ghost under the pointer
+function setNoGhostDragImage(e?: DragEvent) {
+  try {
+    const c = document.createElement('canvas')
+    c.width = 1; c.height = 1
+    e?.dataTransfer?.setDragImage(c, 0, 0)
+  } catch {}
+}
+
 function onItemDragStart(it: Item, e?: DragEvent) {
   dragState.type = 'item'
   dragState.itemId = it.id
   try { e?.dataTransfer?.setData('text/plain', String(it.id)) } catch {}
+  setNoGhostDragImage(e)
 }
 function onItemDragOver(it: Item, e?: DragEvent) {
   dragOverItemId.value = it.id
@@ -263,12 +267,11 @@ function onItemDragOver(it: Item, e?: DragEvent) {
   if (el && e) {
     const r = el.getBoundingClientRect()
     const center = r.top + r.height / 2
-    const threshold = 6 // px hysteresis to reduce flip-flop near the center
+    const threshold = 6
     const delta = e.clientY - center
     const below = delta > threshold
     targetIdx = overIdx + (below ? 1 : 0)
   }
-  // Account for removal index shift
   if (targetIdx > fromIdx) targetIdx -= 1
   if (targetIdx === fromIdx || targetIdx < 0 || targetIdx > items.value.length - 1) return
   const copy = items.value.slice()
@@ -278,28 +281,8 @@ function onItemDragOver(it: Item, e?: DragEvent) {
 }
 async function onItemDrop(it: Item) {
   if (dragState.type !== 'item' || dragState.itemId === undefined) return
-  // Persist current order (list already reorders during dragover)
   dragOverItemId.value = null
   dragState.type = null
-  const order = items.value.map((x, i) => ({ id: x.id, position: i }))
-  await $fetch('/api/todo-items', { method: 'PUT', body: { order } })
-}
-
-async function onItemDropToEnd() {
-  if (dragState.type !== 'item' || dragState.itemId === undefined) return
-  const fromIdx = items.value.findIndex(x => x.id === dragState.itemId)
-  if (fromIdx < 0) return
-  const copy = items.value.slice()
-  const [moved] = copy.splice(fromIdx, 1)
-  copy.push(moved)
-  items.value = copy
-  dragOverItemId.value = null
-  dragState.type = null
-  const order = items.value.map((x, i) => ({ id: x.id, position: i }))
-  await $fetch('/api/todo-items', { method: 'PUT', body: { order } })
-}
-
-async function onItemsDragEnd() {
   const order = items.value.map((x, i) => ({ id: x.id, position: i }))
   await $fetch('/api/todo-items', { method: 'PUT', body: { order } })
 }
@@ -309,6 +292,7 @@ function onSubDragStart(parent: Item, sub: SubItem, e?: DragEvent) {
   dragState.parentId = parent.id
   dragState.subId = sub.id
   try { e?.dataTransfer?.setData('text/plain', String(sub.id)) } catch {}
+  setNoGhostDragImage(e)
 }
 function onSubDragOver(parent: Item, sub: SubItem) {
   dragOverParentId.value = parent.id
@@ -352,7 +336,5 @@ async function onSubDropToEnd(parent: Item) {
 
 <style scoped>
 .todo-move { transition: transform 150ms ease; }
-.drag-ghost { opacity: 0.6; }
-.drag-chosen { opacity: 0.9; }
-.drag-dragging { cursor: grabbing; }
+</style>
 </style>

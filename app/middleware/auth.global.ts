@@ -1,9 +1,9 @@
-export default defineNuxtRouteMiddleware((to) => {
-  if (process.server) return
+export default defineNuxtRouteMiddleware(async (to) => {
   const publicPaths = new Set(['/login'])
   if (publicPaths.has(to.path)) return
-  const uid = useCookie('uid_js')
-  if (!uid.value) {
+  try {
+    await $fetch('/api/auth/me')
+  } catch {
     return navigateTo('/login')
   }
 })

@@ -2,6 +2,7 @@
   <div
     :class="wrapperClass"
     :style="wrapperStyle"
+    @mousedown.capture="onActivate"
     @mousedown="onWrapperMouseDown"
   >
     <div class="flex items-center justify-between">
@@ -53,7 +54,8 @@
 <script setup lang="ts">
 import { useUserStore } from '~~/stores/user'
 import { useSnapGridStore, GRID } from '~~/stores/snapGrid'
-const props = defineProps<{ snap?: boolean; uid: string }>()
+const props = defineProps<{ snap?: boolean; uid: string; active?: boolean }>()
+const emit = defineEmits(['remove','activate'])
 const gridStore = useSnapGridStore()
 function roundToStep(v: number, s: number) { return Math.round(v / s) * s }
 function applySnap() {
@@ -137,7 +139,8 @@ const wrapperStyle = computed(() => ({
   boxSizing: 'border-box'
 }))
 const wrapperClass = computed(() => [
-  'border rounded-2xl p-2 space-y-2 shadow bg-white overflow-hidden',
+  'border rounded-2xl p-2 space-y-2 shadow bg-white overflow-hidden z-20',
+  props.active ? 'ring-2 ring-blue-300' : '',
   dragState.dragging ? 'select-none cursor-grabbing z-50' : 'select-text cursor-default'
 ])
 
@@ -233,6 +236,7 @@ function onWrapperMouseDown(e: MouseEvent) {
   dragState.originY = position.y
   pendingDrag.value = true
 }
+function onActivate() { emit('activate') }
 
 onMounted(() => {
   window.addEventListener('mousemove', onMouseMove)
