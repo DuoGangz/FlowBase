@@ -1,4 +1,4 @@
-import { d as defineEventHandler, a as getMethod, c as createError, r as readBody } from '../../nitro/nitro.mjs';
+import { d as defineEventHandler, b as getMethod, a as getFirestore, c as createError, r as readBody } from '../../nitro/nitro.mjs';
 import { promises } from 'node:fs';
 import path from 'node:path';
 import { g as getCurrentUser } from '../../_/auth.mjs';
@@ -7,18 +7,24 @@ import 'node:https';
 import 'node:events';
 import 'node:buffer';
 import 'node:crypto';
-import '../../_/firestore.mjs';
 import 'firebase-admin';
 
 const titlePath = path.join(process.cwd(), "public", "site-title.json");
 const index = defineEventHandler(async (event) => {
-  var _a, _b;
+  var _a, _b, _c;
   const method = getMethod(event);
   if (method === "GET") {
     try {
+      const db = getFirestore();
+      const snap = await db.collection("settings").doc("site").get();
+      const title = (snap.exists ? (_a = snap.data()) == null ? void 0 : _a.title : void 0) || null;
+      if (title) return { title };
+    } catch {
+    }
+    try {
       const raw = await promises.readFile(titlePath, "utf-8");
       const data = JSON.parse(raw);
-      return { title: (_a = data.title) != null ? _a : "Home" };
+      return { title: (_b = data.title) != null ? _b : "Home" };
     } catch {
       return { title: "Home" };
     }
@@ -28,10 +34,19 @@ const index = defineEventHandler(async (event) => {
     if (!me) throw createError({ statusCode: 401, statusMessage: "Unauthorized" });
     if (me.role !== "ADMIN" && me.role !== "OWNER") throw createError({ statusCode: 403, statusMessage: "Forbidden" });
     const body = await readBody(event);
-    const title = ((_b = body == null ? void 0 : body.title) != null ? _b : "").toString().trim();
+    const title = ((_c = body == null ? void 0 : body.title) != null ? _c : "").toString().trim();
     if (!title) throw createError({ statusCode: 400, statusMessage: "Title required" });
-    await promises.writeFile(titlePath, JSON.stringify({ title }, null, 2), "utf-8");
-    return { ok: true, title };
+    try {
+      const db = getFirestore();
+      await db.collection("settings").doc("site").set({ title }, { merge: true });
+      return { ok: true, title };
+    } catch (e) {
+      if (!process.env.VERCEL) {
+        await promises.writeFile(titlePath, JSON.stringify({ title }, null, 2), "utf-8");
+        return { ok: true, title };
+      }
+      throw createError({ statusCode: 500, statusMessage: "Failed to save title. Configure Firebase Admin for production." });
+    }
   }
   throw createError({ statusCode: 405, statusMessage: "Method Not Allowed" });
 });

@@ -6,6 +6,7 @@ import 'node:buffer';
 import 'node:fs';
 import 'node:path';
 import 'node:crypto';
+import 'firebase-admin';
 
 const recaptcha_post = defineEventHandler(() => {
   return { success: false, disabled: true };

@@ -5,6 +5,7 @@ import { Buffer as Buffer$1 } from 'node:buffer';
 import { promises, existsSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { createHash } from 'node:crypto';
+import admin from 'firebase-admin';
 
 const suspectProtoRx = /"(?:_|\\u0{2}5[Ff]){2}(?:p|\\u0{2}70)(?:r|\\u0{2}72)(?:o|\\u0{2}6[Ff])(?:t|\\u0{2}74)(?:o|\\u0{2}6[Ff])(?:_|\\u0{2}5[Ff]){2}"\s*:/;
 const suspectConstructorRx = /"(?:c|\\u0063)(?:o|\\u006[Ff])(?:n|\\u006[Ee])(?:s|\\u0073)(?:t|\\u0074)(?:r|\\u0072)(?:u|\\u0075)(?:c|\\u0063)(?:t|\\u0074)(?:o|\\u006[Ff])(?:r|\\u0072)"\s*:/;
@@ -152,8 +153,6 @@ function stringifyQuery(query) {
 const PROTOCOL_STRICT_REGEX = /^[\s\w\0+.-]{2,}:([/\\]{1,2})/;
 const PROTOCOL_REGEX = /^[\s\w\0+.-]{2,}:([/\\]{2})?/;
 const PROTOCOL_RELATIVE_REGEX = /^([/\\]\s*){2,}[^/\\]/;
-const PROTOCOL_SCRIPT_RE = /^[\s\0]*(blob|data|javascript|vbscript):$/i;
-const TRAILING_SLASH_RE = /\/$|\/\?|\/#/;
 const JOIN_LEADING_SLASH_RE = /^\.?\//;
 function hasProtocol(inputString, opts = {}) {
   if (typeof opts === "boolean") {
@@ -164,52 +163,20 @@ function hasProtocol(inputString, opts = {}) {
   }
   return PROTOCOL_REGEX.test(inputString) || (opts.acceptRelative ? PROTOCOL_RELATIVE_REGEX.test(inputString) : false);
 }
-function isScriptProtocol(protocol) {
-  return !!protocol && PROTOCOL_SCRIPT_RE.test(protocol);
-}
 function hasTrailingSlash(input = "", respectQueryAndFragment) {
-  if (!respectQueryAndFragment) {
+  {
     return input.endsWith("/");
   }
-  return TRAILING_SLASH_RE.test(input);
 }
 function withoutTrailingSlash(input = "", respectQueryAndFragment) {
-  if (!respectQueryAndFragment) {
+  {
     return (hasTrailingSlash(input) ? input.slice(0, -1) : input) || "/";
   }
-  if (!hasTrailingSlash(input, true)) {
-    return input || "/";
-  }
-  let path = input;
-  let fragment = "";
-  const fragmentIndex = input.indexOf("#");
-  if (fragmentIndex !== -1) {
-    path = input.slice(0, fragmentIndex);
-    fragment = input.slice(fragmentIndex);
-  }
-  const [s0, ...s] = path.split("?");
-  const cleanPath = s0.endsWith("/") ? s0.slice(0, -1) : s0;
-  return (cleanPath || "/") + (s.length > 0 ? `?${s.join("?")}` : "") + fragment;
 }
 function withTrailingSlash(input = "", respectQueryAndFragment) {
-  if (!respectQueryAndFragment) {
+  {
     return input.endsWith("/") ? input : input + "/";
   }
-  if (hasTrailingSlash(input, true)) {
-    return input || "/";
-  }
-  let path = input;
-  let fragment = "";
-  const fragmentIndex = input.indexOf("#");
-  if (fragmentIndex !== -1) {
-    path = input.slice(0, fragmentIndex);
-    fragment = input.slice(fragmentIndex);
-    if (!path) {
-      return fragment;
-    }
-  }
-  const [s0, ...s] = path.split("?");
-  return s0 + "/" + (s.length > 0 ? `?${s.join("?")}` : "") + fragment;
 }
 function hasLeadingSlash(input = "") {
   return input.startsWith("/");
@@ -2893,8 +2860,7 @@ function createNodeFetch() {
 const fetch = globalThis.fetch ? (...args) => globalThis.fetch(...args) : createNodeFetch();
 const Headers$1 = globalThis.Headers || s$1;
 const AbortController = globalThis.AbortController || i;
-const ofetch = createFetch({ fetch, Headers: Headers$1, AbortController });
-const $fetch = ofetch;
+createFetch({ fetch, Headers: Headers$1, AbortController });
 
 function wrapToPromise(value) {
   if (!value || typeof value.then !== "function") {
@@ -4386,7 +4352,7 @@ function _expandFromEnv(value) {
 const _inlineRuntimeConfig = {
   "app": {
     "baseURL": "/",
-    "buildId": "8f187f09-9a42-43ec-9fae-324288379106",
+    "buildId": "bc903ce2-686b-4b86-8c8f-e993a32392e3",
     "buildAssetsDir": "/_nuxt/",
     "cdnURL": ""
   },
@@ -4425,7 +4391,7 @@ const _inlineRuntimeConfig = {
   },
   "fbProjectId": "fb-firebase-74a19",
   "fbClientEmail": "firebase-adminsdk-fbsvc@fb-firebase-74a19.iam.gserviceaccount.com",
-  "fbPrivateKey": "nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDBxB2W0s9XU9n3\nuJqRO57O2719eiMt913txIyGxw+VyiM81fngbuE0QfA0yQGbZo8aPfA4pUT5CCQf\nqDBYaoclzxyHJvEriNl9uuajxHgZ/VjaEvWqI63Rj1gjAfJV5zGD1KU+xuLq/Ckd\nQmW8D9VyG6uj5aGIolBKNr42smKIkVFvS8VaPjwwESrGamtoqyB+EDu7BFKIiRzG\nHd4EYXTfYqfFZfYI1Yh+KkUoc7OW6w87IlR8HnbnmcA1NQIOpeZoWwY898I/vSwn\nESWr9Obgxlytc59khKaxOb8I0deD2TZO5VK/PA+Xsem7EqA4EwTJgv56iH1lEplQ\n1hHMVTfFAgMBAAECggEAA9U33c2nsdKCmPwRpWN/GPV7COUKohAG5rKLGv46R8OB\nbnAqI4I7zigfe5QvgCgzFsqBRkXxYUSJnjYOkSDPPULuNj1hqvOKq3jHSq7kTnw2\n2mQ0B4bDMp2VfFriTFQIu5izIOv6jxcWztdiax5n4bxCEegn7ILsiYdISBkFkC4H\nAac2XaeJ54Re8lIqieOBwfAw342485l54A50KAjJtBwX45wfSZy6XwA833wweifI\n8zTgdbKNZk2GUj+MYu6ZXjWbRiOmB+96FBmWiPpLAgLZRKctpx4ik3h26FldOFnr\n09z3gZY2sscRXG/UHLN2pC1pMai92pK+Evp/ZPJrwQKBgQD+DEdEemkw974zKTM2\n+ZuhHMGAMxel+DldIRNLuRlk1wVqW6o8QojSAUlUUlXhbRNpIRSQe+tvFyHoqnEo\nQSartVLx5tVYWmjjHZfy+X26XQWWjkq5OKg/r2t4TB9zPqQpZTemD71UyOivfSym\nmvK8+iYWGmqk9WJATmUvV4mlQQKBgQDDQUKxwct/7IaYa/JRvju73LzbHTU4uSPB\n+yMPkw9i1YPQgeq58HKoXkRX7BBflYQdhSh+pqgoOU4HmXm7V5BuTwtAUddbzzFf\n+A77FjkLfFqMqDKsAt+ge2HVmsEZQXoKYj6HMhacM4nX0IY0dqvklqNDunNGxkCZ\nTADIEZodhQKBgF0GpfofUPGLZmxZg9V3pVNjsj99dgViVa8Sc3xg9TmFuwftNPMH\n8g3kRrPHyobXaCow4NTfa6CsOdB2ySTSZpStuwe1XR4TTSENLxzb2vwpH+i3hgk5\nA/L+Cz5rsYCDyZ0W4T+/t7aaMwo/rd/8ETK97sBdP/vTlvyxOEATr+WBAoGBAIuQ\nDhf4qXiam+o+3knHa/Lv6J3F1tDgpMp2s6ziNNE0RK+47QpS7+Gg38DonxtzR6fC\nEhvVC8UUkM2lyfk6saXnIeerl/+rrWMnb63RSJ0JGcAISY/hze5rwpZnszZWMuFR\nL9h62OZ1gEWeaw789AjEE5bJorQn6OyqArT+v+XxAoGBALU2cuklusgFyXc0jbR0\nyoGXL38MZCPdFkrp0PZUpAo9zKPbVApbqCVtNh16HcG5DQz60u5xvn+BjTrSBw2+\n5j1YYzrS5FuOmcCRQBTDquE+pwFuur06akFTvNfw4LIxQqmBQpS4dAkawjEbHnLm\nG1ZeKjQ3J9WQ4bMKqX95Qzow"
+  "fbPrivateKey": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDBxB2W0s9XU9n3\nuJqRO57O2719eiMt913txIyGxw+VyiM81fngbuE0QfA0yQGbZo8aPfA4pUT5CCQf\nqDBYaoclzxyHJvEriNl9uuajxHgZ/VjaEvWqI63Rj1gjAfJV5zGD1KU+xuLq/Ckd\nQmW8D9VyG6uj5aGIolBKNr42smKIkVFvS8VaPjwwESrGamtoqyB+EDu7BFKIiRzG\nHd4EYXTfYqfFZfYI1Yh+KkUoc7OW6w87IlR8HnbnmcA1NQIOpeZoWwY898I/vSwn\nESWr9Obgxlytc59khKaxOb8I0deD2TZO5VK/PA+Xsem7EqA4EwTJgv56iH1lEplQ\n1hHMVTfFAgMBAAECggEAA9U33c2nsdKCmPwRpWN/GPV7COUKohAG5rKLGv46R8OB\nbnAqI4I7zigfe5QvgCgzFsqBRkXxYUSJnjYOkSDPPULuNj1hqvOKq3jHSq7kTnw2\n2mQ0B4bDMp2VfFriTFQIu5izIOv6jxcWztdiax5n4bxCEegn7ILsiYdISBkFkC4H\nAac2XaeJ54Re8lIqieOBwfAw342485l54A50KAjJtBwX45wfSZy6XwA833wweifI\n8zTgdbKNZk2GUj+MYu6ZXjWbRiOmB+96FBmWiPpLAgLZRKctpx4ik3h26FldOFnr\n09z3gZY2sscRXG/UHLN2pC1pMai92pK+Evp/ZPJrwQKBgQD+DEdEemkw974zKTM2\n+ZuhHMGAMxel+DldIRNLuRlk1wVqW6o8QojSAUlUUlXhbRNpIRSQe+tvFyHoqnEo\nQSartVLx5tVYWmjjHZfy+X26XQWWjkq5OKg/r2t4TB9zPqQpZTemD71UyOivfSym\nmvK8+iYWGmqk9WJATmUvV4mlQQKBgQDDQUKxwct/7IaYa/JRvju73LzbHTU4uSPB\n+yMPkw9i1YPQgeq58HKoXkRX7BBflYQdhSh+pqgoOU4HmXm7V5BuTwtAUddbzzFf\n+A77FjkLfFqMqDKsAt+ge2HVmsEZQXoKYj6HMhacM4nX0IY0dqvklqNDunNGxkCZ\nTADIEZodhQKBgF0GpfofUPGLZmxZg9V3pVNjsj99dgViVa8Sc3xg9TmFuwftNPMH\n8g3kRrPHyobXaCow4NTfa6CsOdB2ySTSZpStuwe1XR4TTSENLxzb2vwpH+i3hgk5\nA/L+Cz5rsYCDyZ0W4T+/t7aaMwo/rd/8ETK97sBdP/vTlvyxOEATr+WBAoGBAIuQ\nDhf4qXiam+o+3knHa/Lv6J3F1tDgpMp2s6ziNNE0RK+47QpS7+Gg38DonxtzR6fC\nEhvVC8UUkM2lyfk6saXnIeerl/+rrWMnb63RSJ0JGcAISY/hze5rwpZnszZWMuFR\nL9h62OZ1gEWeaw789AjEE5bJorQn6OyqArT+v+XxAoGBALU2cuklusgFyXc0jbR0\nyoGXL38MZCPdFkrp0PZUpAo9zKPbVApbqCVtNh16HcG5DQz60u5xvn+BjTrSBw2+\n5j1YYzrS5FuOmcCRQBTDquE+pwFuur06akFTvNfw4LIxQqmBQpS4dAkawjEbHnLm\nG1ZeKjQ3J9WQ4bMKqX95Qzow\n-----END PRIVATE KEY-----\n"
 };
 const envOptions = {
   prefix: "NITRO_",
@@ -4566,28 +4532,6 @@ const defaultNamespace = _globalThis[globalKey] || (_globalThis[globalKey] = cre
 const getContext = (key, opts = {}) => defaultNamespace.get(key, opts);
 const asyncHandlersKey = "__unctx_async_handlers__";
 const asyncHandlers = _globalThis[asyncHandlersKey] || (_globalThis[asyncHandlersKey] = /* @__PURE__ */ new Set());
-function executeAsync(function_) {
-  const restores = [];
-  for (const leaveHandler of asyncHandlers) {
-    const restore2 = leaveHandler();
-    if (restore2) {
-      restores.push(restore2);
-    }
-  }
-  const restore = () => {
-    for (const restore2 of restores) {
-      restore2();
-    }
-  };
-  let awaitable = function_();
-  if (awaitable && typeof awaitable === "object" && "catch" in awaitable) {
-    awaitable = awaitable.catch((error) => {
-      restore();
-      throw error;
-    });
-  }
-  return [awaitable, restore];
-}
 
 getContext("nitro-app", {
   asyncContext: false,
@@ -4828,38 +4772,74 @@ function defineNitroPlugin(def) {
   return def;
 }
 
-const prisma = new Proxy({}, {
-  get() {
-    throw new Error("Prisma is not available. This route must be migrated to Firestore.");
+let initialized = false;
+function ensureFirebaseAdmin() {
+  if (initialized) return admin;
+  const config = useRuntimeConfig();
+  const projectId = config.fbProjectId;
+  const clientEmail = config.fbClientEmail;
+  const privateKeyRaw = config.fbPrivateKey;
+  const privateKey = (privateKeyRaw || "").replace(/\\n/g, "\n");
+  const storageBucket = process.env.FB_STORAGE_BUCKET || (projectId ? `${projectId}.appspot.com` : void 0);
+  if (!projectId || !clientEmail || !privateKey) {
+    throw createError$1({ statusCode: 500, statusMessage: "Firebase Admin not configured. Set FB_PROJECT_ID, FB_CLIENT_EMAIL, FB_PRIVATE_KEY." });
   }
-});
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+      storageBucket
+    });
+  }
+  initialized = true;
+  return admin;
+}
+function getFirebaseBucket() {
+  const adm = ensureFirebaseAdmin();
+  const bucketName = process.env.FB_STORAGE_BUCKET || `${useRuntimeConfig().fbProjectId}.appspot.com`;
+  return adm.storage().bucket(bucketName);
+}
+
+function getFirestore() {
+  const admin = ensureFirebaseAdmin();
+  return admin.firestore();
+}
+async function getNextSequence(seqName) {
+  const db = getFirestore();
+  const ref = db.collection("_counters").doc(seqName);
+  const res = await db.runTransaction(async (tx) => {
+    var _a;
+    const snap = await tx.get(ref);
+    const current = (snap.exists ? (_a = snap.data()) == null ? void 0 : _a.value : 0) || 0;
+    const next = current + 1;
+    tx.set(ref, { value: next }, { merge: true });
+    return next;
+  });
+  return res;
+}
 
 const _IAk7BBwXBslYCzLJVbTKnPpK9t2g1inHzY3xITNmnGI = defineNitroPlugin(async () => {
   try {
     const enabled = process.env.SEED_OWNER_EMAIL && process.env.SEED_OWNER_PASSWORD;
     if (!enabled) return;
-    const existing = await prisma.user.findUnique({ where: { email: String(process.env.SEED_OWNER_EMAIL) } });
-    if (existing) return;
-    const force = String(process.env.SEED_FORCE || "").toLowerCase() === "true";
-    const userCount = await prisma.user.count();
-    if (userCount > 0 && !force) return;
-    let account = await prisma.account.findFirst();
-    if (!account) {
-      account = await prisma.account.create({ data: { name: process.env.SEED_ACCOUNT_NAME || "Default" } });
-    }
+    const db = getFirestore();
+    const email = String(process.env.SEED_OWNER_EMAIL);
+    const id = email;
+    const snap = await db.collection("users").doc(id).get();
+    if (snap.exists && String(process.env.SEED_FORCE || "").toLowerCase() !== "true") return;
     const name = process.env.SEED_OWNER_NAME || "Owner";
-    const usernameEnv = process.env.SEED_OWNER_USERNAME || String(process.env.SEED_OWNER_EMAIL).split("@")[0];
-    await prisma.user.create({
-      data: {
-        name,
-        email: String(process.env.SEED_OWNER_EMAIL),
-        username: usernameEnv,
-        accountId: account.id,
-        role: "OWNER",
-        passwordHash: String(process.env.SEED_OWNER_PASSWORD)
-      }
-    });
-    console.log("[seed] OWNER user created via SEED_* envs");
+    const usernameEnv = process.env.SEED_OWNER_USERNAME || email.split("@")[0];
+    await db.collection("users").doc(id).set({
+      id,
+      name,
+      email,
+      username: usernameEnv,
+      accountId: 1,
+      role: "OWNER",
+      // passwordHash kept for legacy UI forms but not used by auth
+      passwordHash: String(process.env.SEED_OWNER_PASSWORD),
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    }, { merge: true });
+    console.log("[seed] OWNER user created via Firestore SEED_* envs");
   } catch (err) {
     console.error("[seed] failed:", err);
   }
@@ -4887,6 +4867,7 @@ const _lazy_TwG4s3 = () => import('../routes/api/files/_projectId_.mjs');
 const _lazy_nbbXQS = () => import('../routes/api/home-pages/_id_.mjs');
 const _lazy_TYgY6r = () => import('../routes/api/index4.mjs');
 const _lazy_4TF1Rz = () => import('../routes/api/home-pages/permissions.mjs');
+const _lazy_PIJ2_8 = () => import('../routes/api/im/_peerId_.mjs');
 const _lazy_rmcTkp = () => import('../routes/api/messages/_projectId_.mjs');
 const _lazy_fN_zrD = () => import('../routes/api/owner/transfer.post.mjs');
 const _lazy_YBhlxt = () => import('../routes/api/projects/_slug_.get.mjs');
@@ -4902,7 +4883,7 @@ const _lazy_a3CYsj = () => import('../routes/api/index.get3.mjs');
 const _lazy_Dezstk = () => import('../routes/api/index.post2.mjs');
 const _lazy__WqN0Q = () => import('../routes/api/index.put.mjs');
 const _lazy_JLRWUt = () => import('../routes/api/users/password.post.mjs');
-const _lazy_OjuR4I = () => import('../routes/renderer.mjs').then(function (n) { return n.r; });
+const _lazy_OjuR4I = () => import('../routes/renderer.mjs');
 
 const handlers = [
   { route: '/api/activity-log', handler: _lazy_LwO5O1, lazy: true, middleware: false, method: undefined },
@@ -4921,6 +4902,7 @@ const handlers = [
   { route: '/api/home-pages/:id', handler: _lazy_nbbXQS, lazy: true, middleware: false, method: undefined },
   { route: '/api/home-pages', handler: _lazy_TYgY6r, lazy: true, middleware: false, method: undefined },
   { route: '/api/home-pages/permissions', handler: _lazy_4TF1Rz, lazy: true, middleware: false, method: undefined },
+  { route: '/api/im/:peerId', handler: _lazy_PIJ2_8, lazy: true, middleware: false, method: undefined },
   { route: '/api/messages/:projectId', handler: _lazy_rmcTkp, lazy: true, middleware: false, method: undefined },
   { route: '/api/owner/transfer', handler: _lazy_fN_zrD, lazy: true, middleware: false, method: "post" },
   { route: '/api/projects/:slug', handler: _lazy_YBhlxt, lazy: true, middleware: false, method: "get" },
@@ -5134,5 +5116,5 @@ const listener = function(req, res) {
   return handler(req, res);
 };
 
-export { $fetch as $, isScriptProtocol as A, getContext as B, sanitizeStatusCode as C, createHooks as D, executeAsync as E, toRouteMatcher as F, createRouter$1 as G, defu as H, listener as I, getMethod as a, readMultipartFormData as b, createError$1 as c, defineEventHandler as d, getRouterParams as e, getCookie as f, getQuery as g, setCookie as h, deleteCookie as i, joinRelativeURL as j, getResponseStatusText as k, getResponseStatus as l, defineRenderHandler as m, destr as n, getRouteRules as o, prisma as p, hasProtocol as q, readBody as r, setHeader as s, joinURL as t, useRuntimeConfig as u, useNitroApp as v, parseQuery as w, withQuery as x, withTrailingSlash as y, withoutTrailingSlash as z };
+export { getFirestore as a, getMethod as b, createError$1 as c, defineEventHandler as d, getNextSequence as e, readMultipartFormData as f, getQuery as g, getFirebaseBucket as h, getRouterParams as i, getCookie as j, setCookie as k, deleteCookie as l, joinRelativeURL as m, getResponseStatusText as n, getResponseStatus as o, defineRenderHandler as p, destr as q, readBody as r, setHeader as s, getRouteRules as t, useRuntimeConfig as u, hasProtocol as v, withLeadingSlash as w, joinURL as x, useNitroApp as y, listener as z };
 //# sourceMappingURL=nitro.mjs.map

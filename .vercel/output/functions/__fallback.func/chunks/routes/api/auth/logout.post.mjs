@@ -7,7 +7,6 @@ import 'node:buffer';
 import 'node:fs';
 import 'node:path';
 import 'node:crypto';
-import '../../../_/firestore.mjs';
 import 'firebase-admin';
 
 const logout_post = defineEventHandler(async (event) => {

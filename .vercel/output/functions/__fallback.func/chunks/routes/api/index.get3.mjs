@@ -1,4 +1,4 @@
-import { d as defineEventHandler, c as createError, p as prisma } from '../../nitro/nitro.mjs';
+import { d as defineEventHandler, c as createError, a as getFirestore } from '../../nitro/nitro.mjs';
 import { g as getCurrentUser } from '../../_/auth.mjs';
 import 'node:http';
 import 'node:https';
@@ -7,19 +7,20 @@ import 'node:buffer';
 import 'node:fs';
 import 'node:path';
 import 'node:crypto';
-import '../../_/firestore.mjs';
 import 'firebase-admin';
 
 const index_get = defineEventHandler(async (event) => {
   const me = await getCurrentUser(event);
   if (!me) throw createError({ statusCode: 401, statusMessage: "Unauthorized" });
-  if (me.role === "OWNER" || me.role === "ADMIN") {
-    return prisma.user.findMany({ orderBy: { createdAt: "desc" } });
+  const db = getFirestore();
+  const isMgr = me.role === "OWNER" || me.role === "ADMIN" || me.role === "MANAGER" || me.role === "ADMIN_MANAGER";
+  if (isMgr) {
+    const snap = await db.collection("users").get();
+    const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    return list;
   }
-  if (me.role === "MANAGER") {
-    return prisma.user.findMany({ orderBy: { createdAt: "desc" } });
-  }
-  return prisma.user.findMany({ where: { id: me.id } });
+  const meSnap = await db.collection("users").doc(String(me.id)).get();
+  return meSnap.exists ? [{ id: meSnap.id, ...meSnap.data() }] : [];
 });
 
 export { index_get as default };

@@ -6,6 +6,7 @@ import 'node:buffer';
 import 'node:fs';
 import 'node:path';
 import 'node:crypto';
+import 'firebase-admin';
 
 const bootstrapOwner_post = defineEventHandler(async () => {
   throw createError({ statusCode: 400, statusMessage: "Bootstrap disabled. Use Firebase sign-in." });

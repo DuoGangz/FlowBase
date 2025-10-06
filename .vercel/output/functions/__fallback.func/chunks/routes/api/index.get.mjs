@@ -1,4 +1,4 @@
-import { d as defineEventHandler, c as createError, g as getQuery, p as prisma, s as setHeader } from '../../nitro/nitro.mjs';
+import { d as defineEventHandler, c as createError, g as getQuery, a as getFirestore, s as setHeader } from '../../nitro/nitro.mjs';
 import { g as getCurrentUser } from '../../_/auth.mjs';
 import 'node:http';
 import 'node:https';
@@ -7,11 +7,10 @@ import 'node:buffer';
 import 'node:fs';
 import 'node:path';
 import 'node:crypto';
-import '../../_/firestore.mjs';
 import 'firebase-admin';
 
 const index_get = defineEventHandler(async (event) => {
-  var _a, _b, _c, _d, _e;
+  var _a, _b, _c, _d, _e, _f, _g;
   const me = await getCurrentUser(event);
   if (!me) throw createError({ statusCode: 401, statusMessage: "Unauthorized" });
   if (me.role !== "OWNER" && me.role !== "ADMIN") throw createError({ statusCode: 403, statusMessage: "Forbidden" });
@@ -24,15 +23,14 @@ const index_get = defineEventHandler(async (event) => {
   const where = {};
   if (action) where.action = action;
   if (start || end) where.createdAt = { gte: start, lte: end };
-  const logs = await prisma.auditLog.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    take: 200,
-    include: {
-      actor: { select: { id: true, name: true } },
-      target: { select: { id: true, name: true } }
-    }
+  const db = getFirestore();
+  const snap = await db.collection("auditLogs").orderBy("createdAt", "desc").limit(200).get().catch(async () => {
+    return await db.collection("auditLogs").limit(200).get();
   });
+  let logs = snap.docs.map((d) => d.data());
+  if (where.action) logs = logs.filter((l) => l.action === where.action);
+  if ((_a = where.createdAt) == null ? void 0 : _a.gte) logs = logs.filter((l) => new Date(l.createdAt) >= where.createdAt.gte);
+  if ((_b = where.createdAt) == null ? void 0 : _b.lte) logs = logs.filter((l) => new Date(l.createdAt) <= where.createdAt.lte);
   if (q.format === "csv") {
     const escape = (v) => {
       if (v === null || v === void 0) return "";
@@ -46,9 +44,9 @@ const index_get = defineEventHandler(async (event) => {
         l.createdAt.toISOString(),
         l.action,
         l.actorUserId,
-        (_b = (_a = l.actor) == null ? void 0 : _a.name) != null ? _b : "",
-        (_c = l.targetUserId) != null ? _c : "",
-        (_e = (_d = l.target) == null ? void 0 : _d.name) != null ? _e : "",
+        (_d = (_c = l.actor) == null ? void 0 : _c.name) != null ? _d : "",
+        (_e = l.targetUserId) != null ? _e : "",
+        (_g = (_f = l.target) == null ? void 0 : _f.name) != null ? _g : "",
         JSON.stringify(l.details)
       ].map(escape));
     }
