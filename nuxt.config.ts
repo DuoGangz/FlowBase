@@ -9,6 +9,12 @@ export default defineNuxtConfig({
       inline: ['vue', '@vue/shared', '@vue/runtime-core', '@vue/reactivity', 'vue-bundle-renderer']
     }
   },
+  vite: {
+    ssr: {
+      // Prevent SSR from externalizing these so they get bundled in server output
+      noExternal: ['vue-bundle-renderer', '@vue/shared', '@vue/reactivity', '@vue/runtime-core']
+    }
+  },
   routeRules: {
     '/**': {
       headers: {
