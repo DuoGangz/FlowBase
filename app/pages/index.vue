@@ -49,6 +49,7 @@
             <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('roadmap')">Road Map</button>
             <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('assignments')">Assignments</button>
             <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('attachments')">Attachments</button>
+            <button class="w-full text-left px-3 py-2 hover:bg-gray-50" @click="addModule('messenger')">Messenger</button>
           </div>
         </div>
         <div class="relative">
@@ -94,7 +95,8 @@
           mod.type === 'calendar' ? CalendarModuleLocal :
           mod.type === 'clock' ? ClockModuleLocal :
           mod.type === 'roadmap' ? RoadmapModuleLocal :
-          mod.type === 'assignments' ? AssignmentsModuleLocal : AttachmentsModuleLocal
+          mod.type === 'assignments' ? AssignmentsModuleLocal :
+          mod.type === 'attachments' ? AttachmentsModuleLocal : MessengerModuleLocal
         "
         :snap="snapMode"
         :active="activeKey===mod.key"
@@ -150,11 +152,12 @@ import ClockModuleLocal from '~/components/ClockModuleLocal.vue'
 import RoadmapModuleLocal from '~/components/RoadmapModuleLocal.vue'
 import AssignmentsModuleLocal from '~/components/AssignmentsModuleLocal.vue'
 import AttachmentsModuleLocal from '~/components/AttachmentsModuleLocal.vue'
+import MessengerModuleLocal from '~/components/MessengerModuleLocal.vue'
 import { useUserStore } from '~~/stores/user'
 import BannerCropper from '~/components/BannerCropper.vue'
 import { useSnapGridStore, GRID } from '~~/stores/snapGrid'
 
-type ModuleType = 'todo' | 'calendar' | 'clock' | 'roadmap' | 'assignments' | 'attachments'
+type ModuleType = 'todo' | 'calendar' | 'clock' | 'roadmap' | 'assignments' | 'attachments' | 'messenger'
 type ModuleLayout = { key: string; type: ModuleType; cell?: { col: number; row: number } }
 const modules = ref<ModuleLayout[]>([])
 const menuOpen = ref(false)
@@ -345,7 +348,7 @@ function onClickOutside(e: MouseEvent) {
   }
 }
 
-function addModule(type: 'todo' | 'calendar' | 'clock' | 'roadmap' | 'assignments' | 'attachments') {
+function addModule(type: 'todo' | 'calendar' | 'clock' | 'roadmap' | 'assignments' | 'attachments' | 'messenger') {
   modules.value.push({ key: Math.random().toString(36).slice(2), type })
   menuOpen.value = false
   saveLayout()
