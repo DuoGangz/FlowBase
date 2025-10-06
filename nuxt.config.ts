@@ -22,6 +22,8 @@ export default defineNuxtConfig({
         '@vue/reactivity',
         // Ensure multipart parser is bundled for serverless (used by readMultipartFormData)
         '@fastify/busboy',
+        // Inline Vercel Blob SDK to avoid runtime module resolution issues
+        '@vercel/blob',
         // Keep firebase-admin inside the function to avoid runtime
         // ERR_MODULE_NOT_FOUND on Vercel when per-function installs are skipped/cached
         'firebase-admin'
