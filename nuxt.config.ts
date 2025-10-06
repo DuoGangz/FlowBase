@@ -4,15 +4,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   nitro: {
-    preset: process.env.NITRO_PRESET || 'vercel',
-    externals: {
-      // Force-bundle all node_modules to avoid runtime resolution in Vercel functions
-      inline: true
-    },
-    prerender: {
-      routes: ['/'],
-      crawlLinks: false
-    }
+    preset: 'vercel_static'
   },
   vite: {
     ssr: {
