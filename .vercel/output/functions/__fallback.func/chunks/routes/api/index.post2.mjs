@@ -1,4 +1,4 @@
-import { d as defineEventHandler, c as createError, r as readBody, p as prisma } from '../../nitro/nitro.mjs';
+import { d as defineEventHandler, c as createError, r as readBody, a as getFirestore } from '../../nitro/nitro.mjs';
 import { g as getCurrentUser } from '../../_/auth.mjs';
 import 'node:http';
 import 'node:https';
@@ -7,11 +7,10 @@ import 'node:buffer';
 import 'node:fs';
 import 'node:path';
 import 'node:crypto';
-import '../../_/firestore.mjs';
 import 'firebase-admin';
 
 const index_post = defineEventHandler(async (event) => {
-  var _a, _b;
+  var _a, _b, _c;
   const me = await getCurrentUser(event);
   if (!me) throw createError({ statusCode: 401, statusMessage: "Unauthorized" });
   if (me.role !== "ADMIN" && me.role !== "OWNER") throw createError({ statusCode: 403, statusMessage: "Forbidden" });
@@ -22,25 +21,20 @@ const index_post = defineEventHandler(async (event) => {
   if (requestedRole === "ADMIN_MANAGER" && me.role !== "OWNER") {
     throw createError({ statusCode: 403, statusMessage: "Only OWNER can assign ADMIN_MANAGER" });
   }
-  const created = await prisma.user.create({
-    data: {
-      name: body.name,
-      email: body.email,
-      username,
-      accountId: me.accountId,
-      role: requestedRole,
-      managerId: (_b = body.managerId) != null ? _b : null
-    }
-  });
-  await prisma.auditLog.create({
-    data: {
-      action: "USER_CREATE",
-      actorUserId: me.id,
-      targetUserId: created.id,
-      details: { role: created.role, managerId: created.managerId }
-    }
-  });
-  return created;
+  const db = getFirestore();
+  const id = body.email;
+  const doc = {
+    id,
+    name: body.name,
+    email: body.email,
+    username,
+    accountId: (_b = me.accountId) != null ? _b : 1,
+    role: requestedRole,
+    managerId: (_c = body.managerId) != null ? _c : null,
+    createdAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  await db.collection("users").doc(String(id)).set(doc);
+  return doc;
 });
 
 export { index_post as default };

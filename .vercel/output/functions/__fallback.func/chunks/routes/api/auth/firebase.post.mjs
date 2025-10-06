@@ -1,6 +1,5 @@
-import { d as defineEventHandler, r as readBody, c as createError, u as useRuntimeConfig } from '../../../nitro/nitro.mjs';
+import { d as defineEventHandler, r as readBody, c as createError, a as getFirestore, u as useRuntimeConfig } from '../../../nitro/nitro.mjs';
 import { s as setUserSession } from '../../../_/auth.mjs';
-import { g as getFirestore } from '../../../_/firestore.mjs';
 import admin from 'firebase-admin';
 import 'node:http';
 import 'node:https';
@@ -32,8 +31,10 @@ function ensureAdmin() {
         })
       });
     } catch (e) {
-      console.error("[Auth] Failed to initialize Firebase Admin SDK:", (e == null ? void 0 : e.message) || e);
-      throw createError({ statusCode: 500, statusMessage: "Failed to initialize Firebase Admin SDK" });
+      const detail = (e == null ? void 0 : e.message) || String(e);
+      console.error("[Auth] Failed to initialize Firebase Admin SDK:", detail);
+      const statusMessage = "Failed to initialize Firebase Admin SDK";
+      throw createError({ statusCode: 500, statusMessage });
     }
   }
   initialized = true;

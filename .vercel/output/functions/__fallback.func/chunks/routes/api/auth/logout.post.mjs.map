@@ -1,1 +1,1 @@
-{"version":3,"file":"logout.post.mjs","sources":["../../../../../../../../server/api/auth/logout.post.ts"],"sourcesContent":null,"names":[],"mappings":";;;;;;;;;;;;AAEA,oBAAA,kBAAA,CAAA,OAAA,KAAA,KAAA;AACA,EAAA,gBAAA,CAAA,KAAA,CAAA;AACA,EAAA,OAAA,EAAA,IAAA,IAAA,EAAA;AACA,CAAA,CAAA;;;;"}
+{"version":3,"file":"logout.post.mjs","sources":["../../../../../../../../server/api/auth/logout.post.ts"],"sourcesContent":null,"names":[],"mappings":";;;;;;;;;;;AAEA,oBAAA,kBAAA,CAAA,OAAA,KAAA,KAAA;AACA,EAAA,gBAAA,CAAA,KAAA,CAAA;AACA,EAAA,OAAA,EAAA,IAAA,IAAA,EAAA;AACA,CAAA,CAAA;;;;"}

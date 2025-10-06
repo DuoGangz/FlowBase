@@ -6,6 +6,7 @@ import 'node:buffer';
 import 'node:fs';
 import 'node:path';
 import 'node:crypto';
+import 'firebase-admin';
 
 const login_post = defineEventHandler(async (event) => {
   throw createError({ statusCode: 400, statusMessage: "Password login disabled. Use Google sign-in." });

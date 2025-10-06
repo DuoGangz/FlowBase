@@ -1,6 +1,5 @@
-import { d as defineEventHandler, c as createError, e as getRouterParams, a as getMethod, r as readBody } from '../../../nitro/nitro.mjs';
+import { d as defineEventHandler, c as createError, i as getRouterParams, b as getMethod, a as getFirestore, r as readBody } from '../../../nitro/nitro.mjs';
 import { g as getCurrentUser } from '../../../_/auth.mjs';
-import { g as getFirestore } from '../../../_/firestore.mjs';
 import 'node:http';
 import 'node:https';
 import 'node:events';

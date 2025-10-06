@@ -1,4 +1,4 @@
-import { d as defineEventHandler, e as getRouterParams, c as createError, a as getMethod, p as prisma, r as readBody, g as getQuery } from '../../../nitro/nitro.mjs';
+import { d as defineEventHandler, i as getRouterParams, c as createError, b as getMethod, a as getFirestore, r as readBody, e as getNextSequence, g as getQuery } from '../../../nitro/nitro.mjs';
 import 'node:http';
 import 'node:https';
 import 'node:events';
@@ -6,6 +6,7 @@ import 'node:buffer';
 import 'node:fs';
 import 'node:path';
 import 'node:crypto';
+import 'firebase-admin';
 
 const _projectId_ = defineEventHandler(async (event) => {
   var _a;
@@ -16,10 +17,11 @@ const _projectId_ = defineEventHandler(async (event) => {
   }
   const method = getMethod(event);
   if (method === "GET") {
-    return prisma.roadmapEntry.findMany({
-      where: { projectId: projectIdNum },
-      orderBy: { date: "asc" }
+    const db = getFirestore();
+    const snap = await db.collection("roadmapEntries").where("projectId", "==", projectIdNum).orderBy("date", "asc").get().catch(async () => {
+      return await db.collection("roadmapEntries").where("projectId", "==", projectIdNum).get();
     });
+    return snap.docs.map((d) => d.data());
   }
   if (method === "POST") {
     const body = await readBody(event);
@@ -30,18 +32,19 @@ const _projectId_ = defineEventHandler(async (event) => {
     if (Number.isNaN(parsedDate.getTime())) {
       throw createError({ statusCode: 400, statusMessage: "date must be a valid date" });
     }
-    return prisma.roadmapEntry.create({
-      data: {
-        description: body.description,
-        date: parsedDate,
-        userId: (_a = body.userId) != null ? _a : 1,
-        projectId: projectIdNum
-      }
-    });
+    const db = getFirestore();
+    const id = await getNextSequence("roadmapEntries");
+    const doc = { id, description: body.description, date: parsedDate.toISOString(), userId: String((_a = body.userId) != null ? _a : "1"), projectId: projectIdNum, createdAt: (/* @__PURE__ */ new Date()).toISOString() };
+    await db.collection("roadmapEntries").doc(String(id)).set(doc);
+    return doc;
   }
   if (method === "PUT") {
     const body = await readBody(event);
     if (!(body == null ? void 0 : body.id)) throw createError({ statusCode: 400, statusMessage: "id is required" });
+    const db = getFirestore();
+    const ref = db.collection("roadmapEntries").doc(String(body.id));
+    const snap = await ref.get();
+    if (!snap.exists) throw createError({ statusCode: 404, statusMessage: "Not found" });
     const data = {};
     if (typeof body.description === "string") data.description = body.description;
     if (body.date) {
@@ -49,15 +52,17 @@ const _projectId_ = defineEventHandler(async (event) => {
       if (Number.isNaN(d.getTime())) {
         throw createError({ statusCode: 400, statusMessage: "date must be a valid date" });
       }
-      data.date = d;
+      data.date = d.toISOString();
     }
-    return prisma.roadmapEntry.update({ where: { id: Number(body.id) }, data });
+    await ref.set({ ...snap.data(), ...data, updatedAt: (/* @__PURE__ */ new Date()).toISOString() }, { merge: true });
+    return (await ref.get()).data();
   }
   if (method === "DELETE") {
     const query = getQuery(event);
     const id = Number(query.id);
     if (!id) throw createError({ statusCode: 400, statusMessage: "id is required" });
-    await prisma.roadmapEntry.delete({ where: { id } });
+    const db = getFirestore();
+    await db.collection("roadmapEntries").doc(String(id)).delete();
     return { ok: true };
   }
   throw createError({ statusCode: 405, statusMessage: "Method Not Allowed" });

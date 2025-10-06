@@ -6,6 +6,7 @@ import 'node:buffer';
 import 'node:fs';
 import 'node:path';
 import 'node:crypto';
+import 'firebase-admin';
 
 const settings = defineEventHandler(() => {
   throw createError({ statusCode: 404, statusMessage: "Not Found" });

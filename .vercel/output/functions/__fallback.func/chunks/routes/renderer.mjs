@@ -1,10 +1,208 @@
-import { createRenderer, getRequestDependencies, getPreloadLinks, getPrefetchLinks } from 'vue-bundle-renderer/runtime';
-import { j as joinRelativeURL, u as useRuntimeConfig, k as getResponseStatusText, l as getResponseStatus, m as defineRenderHandler, g as getQuery, c as createError, n as destr, o as getRouteRules, q as hasProtocol, t as joinURL, v as useNitroApp } from '../nitro/nitro.mjs';
-import { renderToString } from 'vue/server-renderer';
+import { w as withLeadingSlash, m as joinRelativeURL, u as useRuntimeConfig, n as getResponseStatusText, o as getResponseStatus, p as defineRenderHandler, g as getQuery, c as createError, q as destr, t as getRouteRules, v as hasProtocol, x as joinURL, y as useNitroApp } from '../nitro/nitro.mjs';
 import { createHead as createHead$1, propsToString, renderSSRHead } from 'unhead/server';
 import { stringify, uneval } from 'devalue';
-import { walkResolver } from 'unhead/utils';
-import { toValue, isRef, hasInjectionContext, inject, ref, watchEffect, getCurrentInstance, onBeforeUnmount, onDeactivated, onActivated } from 'vue';
+import { toValue, isRef } from 'vue';
+import 'node:http';
+import 'node:https';
+import 'node:events';
+import 'node:buffer';
+import 'node:fs';
+import 'node:path';
+import 'node:crypto';
+import 'firebase-admin';
+
+function createRendererContext({ manifest, buildAssetsURL }) {
+  const ctx = {
+    // Manifest
+    buildAssetsURL: buildAssetsURL || withLeadingSlash,
+    manifest: void 0,
+    updateManifest,
+    // Internal cache
+    _dependencies: void 0,
+    _dependencySets: void 0,
+    _entrypoints: void 0
+  };
+  function updateManifest(manifest2) {
+    const manifestEntries = Object.entries(manifest2);
+    ctx.manifest = manifest2;
+    ctx._dependencies = {};
+    ctx._dependencySets = {};
+    ctx._entrypoints = manifestEntries.filter((e) => e[1].isEntry).map(([module]) => module);
+  }
+  updateManifest(manifest);
+  return ctx;
+}
+function getModuleDependencies(id, rendererContext) {
+  if (rendererContext._dependencies[id]) {
+    return rendererContext._dependencies[id];
+  }
+  const dependencies = rendererContext._dependencies[id] = {
+    scripts: {},
+    styles: {},
+    preload: {},
+    prefetch: {}
+  };
+  const meta = rendererContext.manifest[id];
+  if (!meta) {
+    return dependencies;
+  }
+  if (meta.file) {
+    dependencies.preload[id] = meta;
+    if (meta.isEntry || meta.sideEffects) {
+      dependencies.scripts[id] = meta;
+    }
+  }
+  for (const css of meta.css || []) {
+    dependencies.styles[css] = dependencies.preload[css] = dependencies.prefetch[css] = rendererContext.manifest[css];
+  }
+  for (const asset of meta.assets || []) {
+    dependencies.preload[asset] = dependencies.prefetch[asset] = rendererContext.manifest[asset];
+  }
+  for (const depId of meta.imports || []) {
+    const depDeps = getModuleDependencies(depId, rendererContext);
+    Object.assign(dependencies.styles, depDeps.styles);
+    Object.assign(dependencies.preload, depDeps.preload);
+    Object.assign(dependencies.prefetch, depDeps.prefetch);
+  }
+  const filteredPreload = {};
+  for (const id2 in dependencies.preload) {
+    const dep = dependencies.preload[id2];
+    if (dep.preload) {
+      filteredPreload[id2] = dep;
+    }
+  }
+  dependencies.preload = filteredPreload;
+  return dependencies;
+}
+function getAllDependencies(ids, rendererContext) {
+  const cacheKey = Array.from(ids).sort().join(",");
+  if (rendererContext._dependencySets[cacheKey]) {
+    return rendererContext._dependencySets[cacheKey];
+  }
+  const allDeps = {
+    scripts: {},
+    styles: {},
+    preload: {},
+    prefetch: {}
+  };
+  for (const id of ids) {
+    const deps = getModuleDependencies(id, rendererContext);
+    Object.assign(allDeps.scripts, deps.scripts);
+    Object.assign(allDeps.styles, deps.styles);
+    Object.assign(allDeps.preload, deps.preload);
+    Object.assign(allDeps.prefetch, deps.prefetch);
+    for (const dynamicDepId of rendererContext.manifest[id]?.dynamicImports || []) {
+      const dynamicDeps = getModuleDependencies(dynamicDepId, rendererContext);
+      Object.assign(allDeps.prefetch, dynamicDeps.scripts);
+      Object.assign(allDeps.prefetch, dynamicDeps.styles);
+      Object.assign(allDeps.prefetch, dynamicDeps.preload);
+    }
+  }
+  const filteredPrefetch = {};
+  for (const id in allDeps.prefetch) {
+    const dep = allDeps.prefetch[id];
+    if (dep.prefetch) {
+      filteredPrefetch[id] = dep;
+    }
+  }
+  allDeps.prefetch = filteredPrefetch;
+  for (const id in allDeps.preload) {
+    delete allDeps.prefetch[id];
+  }
+  for (const style in allDeps.styles) {
+    delete allDeps.preload[style];
+    delete allDeps.prefetch[style];
+  }
+  rendererContext._dependencySets[cacheKey] = allDeps;
+  return allDeps;
+}
+function getRequestDependencies(ssrContext, rendererContext) {
+  if (ssrContext._requestDependencies) {
+    return ssrContext._requestDependencies;
+  }
+  const ids = new Set(Array.from([
+    ...rendererContext._entrypoints,
+    ...ssrContext.modules || ssrContext._registeredComponents || []
+  ]));
+  const deps = getAllDependencies(ids, rendererContext);
+  ssrContext._requestDependencies = deps;
+  return deps;
+}
+function renderStyles(ssrContext, rendererContext) {
+  const { styles } = getRequestDependencies(ssrContext, rendererContext);
+  return Object.values(styles).map(
+    (resource) => renderLinkToString({ rel: "stylesheet", href: rendererContext.buildAssetsURL(resource.file), crossorigin: "" })
+  ).join("");
+}
+function getResources(ssrContext, rendererContext) {
+  return [...getPreloadLinks(ssrContext, rendererContext), ...getPrefetchLinks(ssrContext, rendererContext)];
+}
+function renderResourceHints(ssrContext, rendererContext) {
+  return getResources(ssrContext, rendererContext).map(renderLinkToString).join("");
+}
+function renderResourceHeaders(ssrContext, rendererContext) {
+  return {
+    link: getResources(ssrContext, rendererContext).map(renderLinkToHeader).join(", ")
+  };
+}
+function getPreloadLinks(ssrContext, rendererContext) {
+  const { preload } = getRequestDependencies(ssrContext, rendererContext);
+  return Object.values(preload).map((resource) => ({
+    rel: resource.module ? "modulepreload" : "preload",
+    as: resource.resourceType,
+    type: resource.mimeType ?? null,
+    crossorigin: resource.resourceType === "style" || resource.resourceType === "font" || resource.resourceType === "script" || resource.module ? "" : null,
+    href: rendererContext.buildAssetsURL(resource.file)
+  }));
+}
+function getPrefetchLinks(ssrContext, rendererContext) {
+  const { prefetch } = getRequestDependencies(ssrContext, rendererContext);
+  return Object.values(prefetch).map((resource) => ({
+    rel: "prefetch",
+    as: resource.resourceType,
+    type: resource.mimeType ?? null,
+    crossorigin: resource.resourceType === "style" || resource.resourceType === "font" || resource.resourceType === "script" || resource.module ? "" : null,
+    href: rendererContext.buildAssetsURL(resource.file)
+  }));
+}
+function renderScripts(ssrContext, rendererContext) {
+  const { scripts } = getRequestDependencies(ssrContext, rendererContext);
+  return Object.values(scripts).map((resource) => renderScriptToString({
+    type: resource.module ? "module" : null,
+    src: rendererContext.buildAssetsURL(resource.file),
+    defer: resource.module ? null : "",
+    crossorigin: ""
+  })).join("");
+}
+function createRenderer(createApp, renderOptions) {
+  const rendererContext = createRendererContext(renderOptions);
+  return {
+    rendererContext,
+    async renderToString(ssrContext) {
+      ssrContext._registeredComponents = ssrContext._registeredComponents || /* @__PURE__ */ new Set();
+      const _createApp = await Promise.resolve(createApp).then((r) => "default" in r ? r.default : r);
+      const app = await _createApp(ssrContext);
+      const html = await renderOptions.renderToString(app, ssrContext);
+      const wrap = (fn) => () => fn(ssrContext, rendererContext);
+      return {
+        html,
+        renderResourceHeaders: wrap(renderResourceHeaders),
+        renderResourceHints: wrap(renderResourceHints),
+        renderStyles: wrap(renderStyles),
+        renderScripts: wrap(renderScripts)
+      };
+    }
+  };
+}
+function renderScriptToString(attrs) {
+  return `<script${Object.entries(attrs).map(([key, value]) => value === null ? "" : value ? ` ${key}="${value}"` : " " + key).join("")}><\/script>`;
+}
+function renderLinkToString(attrs) {
+  return `<link${Object.entries(attrs).map(([key, value]) => value === null ? "" : value ? ` ${key}="${value}"` : " " + key).join("")}>`;
+}
+function renderLinkToHeader(attrs) {
+  return `<${attrs.href}>${Object.entries(attrs).map(([key, value]) => key === "href" || value === null ? "" : value ? `; ${key}="${value}"` : `; ${key}`).join("")}`;
+}
 
 const VueResolver = (_, value) => {
   return isRef(value) ? toValue(value) : value;
@@ -20,46 +218,6 @@ function vueInstall(head) {
     }
   };
   return plugin.install;
-}
-
-function injectHead() {
-  if (hasInjectionContext()) {
-    const instance = inject(headSymbol);
-    if (!instance) {
-      throw new Error("useHead() was called without provide context, ensure you call it through the setup() function.");
-    }
-    return instance;
-  }
-  throw new Error("useHead() was called without provide context, ensure you call it through the setup() function.");
-}
-function useHead(input, options = {}) {
-  const head = options.head || injectHead();
-  return head.ssr ? head.push(input || {}, options) : clientUseHead(head, input, options);
-}
-function clientUseHead(head, input, options = {}) {
-  const deactivated = ref(false);
-  let entry;
-  watchEffect(() => {
-    const i = deactivated.value ? {} : walkResolver(input, VueResolver);
-    if (entry) {
-      entry.patch(i);
-    } else {
-      entry = head.push(i, options);
-    }
-  });
-  const vm = getCurrentInstance();
-  if (vm) {
-    onBeforeUnmount(() => {
-      entry.dispose();
-    });
-    onDeactivated(() => {
-      deactivated.value = true;
-    });
-    onActivated(() => {
-      deactivated.value = false;
-    });
-  }
-  return entry;
 }
 
 function createHead(options = {}) {
@@ -87,9 +245,6 @@ const appSpaLoaderAttrs = {"id":"__nuxt-loader"};
 
 const appId = "nuxt-app";
 
-function baseURL() {
-  return useRuntimeConfig().app.baseURL;
-}
 function buildAssetsDir() {
   return useRuntimeConfig().app.buildAssetsDir;
 }
@@ -104,29 +259,7 @@ function publicAssetsURL(...path) {
 
 const APP_ROOT_OPEN_TAG = `<${appRootTag}${propsToString(appRootAttrs)}>`;
 const APP_ROOT_CLOSE_TAG = `</${appRootTag}>`;
-const getServerEntry = () => import('../build/server.mjs').then((r) => r.default || r);
 const getClientManifest = () => import('../build/client.manifest.mjs').then((r) => r.default || r).then((r) => typeof r === "function" ? r() : r);
-const getSSRRenderer = lazyCachedFunction(async () => {
-  const manifest = await getClientManifest();
-  if (!manifest) {
-    throw new Error("client.manifest is not available");
-  }
-  const createSSRApp = await getServerEntry();
-  if (!createSSRApp) {
-    throw new Error("Server bundle is not available");
-  }
-  const options = {
-    manifest,
-    renderToString: renderToString$1,
-    buildAssetsURL
-  };
-  const renderer = createRenderer(createSSRApp, options);
-  async function renderToString$1(input, context) {
-    const html = await renderToString(input, context);
-    return APP_ROOT_OPEN_TAG + html + APP_ROOT_CLOSE_TAG;
-  }
-  return renderer;
-});
 const getSPARenderer = lazyCachedFunction(async () => {
   const manifest = await getClientManifest();
   const spaTemplate = await import('../virtual/_virtual_spa-template.mjs').then((r) => r.template).catch(() => "").then((r) => {
@@ -174,18 +307,8 @@ function lazyCachedFunction(fn) {
   };
 }
 function getRenderer(ssrContext) {
-  return ssrContext.noSSR ? getSPARenderer() : getSSRRenderer();
+  return getSPARenderer() ;
 }
-const getSSRStyles = lazyCachedFunction(() => import('../build/styles.mjs').then((r) => r.default || r));
-const getEntryIds = () => getClientManifest().then((r) => {
-  const entryIds = [];
-  for (const entry of Object.values(r)) {
-    if (entry._globalCSS) {
-      entryIds.push(entry.src);
-    }
-  }
-  return entryIds;
-});
 
 function renderPayloadResponse(ssrContext) {
   return {
@@ -204,7 +327,7 @@ function renderPayloadJsonScript(opts) {
     "type": "application/json",
     "innerHTML": contents,
     "data-nuxt-data": appId,
-    "data-ssr": !(opts.ssrContext.noSSR)
+    "data-ssr": false
   };
   {
     payload.id = "__NUXT_DATA__";
@@ -237,7 +360,7 @@ function createSSRContext(event) {
     url: event.path,
     event,
     runtimeConfig: useRuntimeConfig(event),
-    noSSR: event.context.nuxt?.noSSR || (false),
+    noSSR: true,
     head: createHead(unheadOptions),
     error: false,
     nuxt: void 0,
@@ -254,22 +377,9 @@ function setSSRError(ssrContext, error) {
   ssrContext.url = error.url;
 }
 
-async function renderInlineStyles(usedModules) {
-  const styleMap = await getSSRStyles();
-  const inlinedStyles = /* @__PURE__ */ new Set();
-  for (const mod of usedModules) {
-    if (mod in styleMap && styleMap[mod]) {
-      for (const style of await styleMap[mod]()) {
-        inlinedStyles.add(style);
-      }
-    }
-  }
-  return Array.from(inlinedStyles).map((style) => ({ innerHTML: style }));
-}
-
 const renderSSRHeadOptions = {"omitLineBreaks":true};
 
-const entryFileName = "h1B-GAnh.js";
+const entryFileName = "UzHC0j1q.js";
 
 const _DRIVE_LETTER_START_RE = /^[A-Za-z]:\//;
 function normalizeWindowsPath(input = "") {
@@ -422,12 +532,7 @@ const renderer = defineRenderHandler(async (event) => {
   if (routeOptions.ssr === false) {
     ssrContext.noSSR = true;
   }
-  const renderer = await getRenderer(ssrContext);
-  {
-    for (const id of await getEntryIds()) {
-      ssrContext.modules.add(id);
-    }
-  }
+  const renderer = await getRenderer();
   const _rendered = await renderer.renderToString(ssrContext).catch(async (error) => {
     if (ssrContext._renderResponse && error.message === "skipping render") {
       return {};
@@ -436,7 +541,7 @@ const renderer = defineRenderHandler(async (event) => {
     await ssrContext.nuxt?.hooks.callHook("app:error", _err);
     throw _err;
   });
-  const inlinedStyles = !ssrContext._renderResponse && !isRenderingPayload ? await renderInlineStyles(ssrContext.modules ?? []) : [];
+  const inlinedStyles = [];
   await ssrContext.nuxt?.hooks.callHook("app:rendered", { ssrContext, renderResult: _rendered });
   if (ssrContext._renderResponse) {
     return ssrContext._renderResponse;
@@ -565,10 +670,5 @@ function renderHTMLDocument(html) {
   return `<!DOCTYPE html><html${joinAttrs(html.htmlAttrs)}><head>${joinTags(html.head)}</head><body${joinAttrs(html.bodyAttrs)}>${joinTags(html.bodyPrepend)}${joinTags(html.body)}${joinTags(html.bodyAppend)}</body></html>`;
 }
 
-const renderer$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
-  __proto__: null,
-  default: renderer
-}, Symbol.toStringTag, { value: 'Module' }));
-
-export { baseURL as b, headSymbol as h, renderer$1 as r, useHead as u };
+export { renderer as default };
 //# sourceMappingURL=renderer.mjs.map
