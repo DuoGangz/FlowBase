@@ -480,16 +480,30 @@ function moveSubItem(parentIdx: number, subIdx: number, dir: 1 | -1) {
   saveLocal()
 }
 
-// Hide default drag image so there's no ghost under the pointer
-function setNoGhostDragImage(e?: DragEvent) {
+// Create a visual drag preview that matches the item so it follows the cursor
+function setDragPreviewFromEl(targetEl: HTMLElement | null, e?: DragEvent) {
   try {
-    if (!e || !e.dataTransfer) return
-    const img = document.createElement('img')
-    img.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=='
-    Object.assign(img.style, { position: 'fixed', top: '-1000px', left: '-1000px', width: '1px', height: '1px', opacity: '0' })
-    document.body.appendChild(img)
-    e.dataTransfer.setDragImage(img, 0, 0)
-    setTimeout(() => { try { img.parentNode?.removeChild(img) } catch {} }, 0)
+    if (!targetEl || !e || !e.dataTransfer) return
+    const r = targetEl.getBoundingClientRect()
+    const clone = targetEl.cloneNode(true) as HTMLElement
+    Object.assign(clone.style, {
+      position: 'fixed',
+      left: '-10000px',
+      top: '-10000px',
+      width: Math.max(1, Math.round(r.width)) + 'px',
+      height: Math.max(1, Math.round(r.height)) + 'px',
+      boxSizing: 'border-box',
+      background: 'white',
+      opacity: '0.95',
+      pointerEvents: 'none',
+      borderRadius: '8px',
+      boxShadow: '0 6px 16px rgba(0,0,0,0.15)'
+    } as CSSStyleDeclaration)
+    document.body.appendChild(clone)
+    const ox = Math.max(0, Math.round((e.clientX || 0) - r.left))
+    const oy = Math.max(0, Math.round((e.clientY || 0) - r.top))
+    e.dataTransfer.setDragImage(clone, ox, oy)
+    requestAnimationFrame(() => { try { clone.parentNode?.removeChild(clone) } catch {} })
   } catch {}
 }
 
@@ -504,7 +518,7 @@ function onItemDragStart(idx: number, e: DragEvent) {
       e.dataTransfer.setData('application/x-drag-local', String(idx))
     }
   } catch {}
-  setNoGhostDragImage(e)
+  setDragPreviewFromEl(itemEls.get((items.value[idx]?.id ?? idx) as number) || null, e)
 }
 // Live reorder during dragover using center-aware targeting; drop just finalizes
 function onItemDragOver(idx: number, e?: DragEvent) {
