@@ -6,6 +6,11 @@ export default defineNuxtConfig({
   nitro: {
     // Use Vercel serverless so /api routes deploy
     preset: 'vercel',
+    rollupConfig: {
+      output: {
+        inlineDynamicImports: true
+      }
+    },
     externals: {
       // Ensure renderer + Vue runtime libs bundle into lambdas
       inline: [
