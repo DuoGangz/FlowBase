@@ -7,8 +7,15 @@ export default defineNuxtConfig({
     // Use Vercel serverless so /api routes deploy
     preset: 'vercel',
     externals: {
-      // Ensure renderer libs are bundled to avoid runtime resolution issues
-      inline: ['vue-bundle-renderer', '@vue/shared']
+      // Ensure renderer + Vue runtime libs bundle into lambdas
+      inline: [
+        'vue-bundle-renderer',
+        '@vue/server-renderer',
+        '@vue/shared',
+        'vue',
+        '@vue/runtime-core',
+        '@vue/reactivity'
+      ]
     }
   },
   // Rely on Nitro's defaults for externalization/bundling.
