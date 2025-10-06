@@ -7,12 +7,8 @@ export default defineNuxtConfig({
     // Use Vercel serverless so /api routes deploy
     preset: 'vercel'
   },
-  vite: {
-    ssr: {
-      // Prevent SSR from externalizing these so they get bundled in server output
-      noExternal: true
-    }
-  },
+  // Rely on Nitro's defaults for externalization/bundling.
+  // Avoid forcing `noExternal` to reduce bundling surprises.
   routeRules: {
     '/**': {
       headers: {
