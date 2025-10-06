@@ -6,14 +6,14 @@ export default defineNuxtConfig({
   nitro: {
     preset: process.env.NITRO_PRESET || 'vercel',
     externals: {
-      // Ensure SSR renderer deps are bundled so Vercel functions don't need them at runtime
-      inline: ['vue', '@vue/shared', '@vue/runtime-core', '@vue/reactivity', 'vue-bundle-renderer', 'vue-bundle-renderer/runtime', 'vue/server-renderer']
+      // Force-bundle all node_modules to avoid runtime resolution in Vercel functions
+      inline: true
     }
   },
   vite: {
     ssr: {
       // Prevent SSR from externalizing these so they get bundled in server output
-      noExternal: ['vue-bundle-renderer', 'vue-bundle-renderer/runtime', 'vue/server-renderer', '@vue/shared', '@vue/reactivity', '@vue/runtime-core']
+      noExternal: true
     }
   },
   routeRules: {
