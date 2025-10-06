@@ -9,7 +9,6 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "start": "node .output/server/index.mjs",
-    // Vercel uses this if present; build (not generate) to include API routes
     "vercel-build": "nuxt build"
   },
   "dependencies": {

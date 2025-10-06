@@ -370,4 +370,3 @@ async function onSubDropToEnd(parent: Item) {
 <style scoped>
 .todo-move { transition: transform 150ms ease; }
 </style>
-</style>
