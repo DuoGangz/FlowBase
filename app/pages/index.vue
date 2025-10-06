@@ -362,13 +362,19 @@ function removeModule(key: string) {
 const canManagePages = computed(() => (meServer.value ? (meServer.value.role === 'OWNER' || meServer.value.role === 'ADMIN') : (me.role === 'OWNER' || me.role === 'ADMIN')))
 
 async function loadPages() {
-  pages.value = await $fetch('/api/home-pages')
-  if (!currentPageId.value) {
-    const personal = pages.value.find(p => p.mine)
-    const def = personal || pages.value.find(p => p.isDefault) || pages.value[0]
-    if (def) currentPageId.value = def.id
+  try {
+    pages.value = await $fetch('/api/home-pages')
+    if (!currentPageId.value) {
+      const personal = pages.value.find(p => p.mine)
+      const def = personal || pages.value.find(p => p.isDefault) || pages.value[0]
+      if (def) currentPageId.value = def.id
+    }
+    if (currentPageId.value) await loadLayout(currentPageId.value)
+  } catch (e: any) {
+    // If unauthenticated or backend not configured, proceed without pages
+    pages.value = []
+    currentPageId.value = null
   }
-  if (currentPageId.value) await loadLayout(currentPageId.value)
 }
 
 async function loadLayout(id: number) {
@@ -467,7 +473,8 @@ async function loadMe() {
 }
 
 onMounted(async () => {
-  await Promise.all([loadBanner(), loadTitle(), loadPages(), loadMe()])
+  await Promise.all([loadBanner(), loadTitle(), loadMe()])
+  try { await loadPages() } catch {}
   window.addEventListener('click', onClickOutside)
 })
 
