@@ -8,6 +8,10 @@ export default defineNuxtConfig({
     externals: {
       // Force-bundle all node_modules to avoid runtime resolution in Vercel functions
       inline: true
+    },
+    prerender: {
+      routes: ['/'],
+      crawlLinks: false
     }
   },
   vite: {
