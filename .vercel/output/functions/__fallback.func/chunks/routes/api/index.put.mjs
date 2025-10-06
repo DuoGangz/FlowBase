@@ -7,7 +7,24 @@ import 'node:buffer';
 import 'node:fs';
 import 'node:path';
 import 'node:crypto';
-import 'firebase-admin';
+import 'fs';
+import 'url';
+import 'os';
+import 'path';
+import 'http';
+import 'https';
+import 'http2';
+import 'events';
+import '@fastify/busboy';
+import 'zlib';
+import 'jsonwebtoken';
+import 'node-forge';
+import 'crypto';
+import 'jwks-rsa';
+import '@firebase/database-compat/standalone';
+import '@google-cloud/firestore';
+import 'farmhash-modern';
+import '@google-cloud/firestore/build/src/path';
 
 const index_put = defineEventHandler(async (event) => {
   var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q;

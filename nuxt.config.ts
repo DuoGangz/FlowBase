@@ -14,7 +14,10 @@ export default defineNuxtConfig({
         '@vue/shared',
         'vue',
         '@vue/runtime-core',
-        '@vue/reactivity'
+        '@vue/reactivity',
+        // Keep firebase-admin inside the function to avoid runtime
+        // ERR_MODULE_NOT_FOUND on Vercel when per-function installs are skipped/cached
+        'firebase-admin'
       ]
     }
   },

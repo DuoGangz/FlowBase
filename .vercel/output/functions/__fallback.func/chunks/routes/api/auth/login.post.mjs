@@ -6,7 +6,24 @@ import 'node:buffer';
 import 'node:fs';
 import 'node:path';
 import 'node:crypto';
-import 'firebase-admin';
+import 'fs';
+import 'url';
+import 'os';
+import 'path';
+import 'http';
+import 'https';
+import 'http2';
+import 'events';
+import '@fastify/busboy';
+import 'zlib';
+import 'jsonwebtoken';
+import 'node-forge';
+import 'crypto';
+import 'jwks-rsa';
+import '@firebase/database-compat/standalone';
+import '@google-cloud/firestore';
+import 'farmhash-modern';
+import '@google-cloud/firestore/build/src/path';
 
 const login_post = defineEventHandler(async (event) => {
   throw createError({ statusCode: 400, statusMessage: "Password login disabled. Use Google sign-in." });

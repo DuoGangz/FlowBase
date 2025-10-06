@@ -1,6 +1,5 @@
-import { d as defineEventHandler, r as readBody, c as createError, a as getFirestore, u as useRuntimeConfig } from '../../../nitro/nitro.mjs';
+import { d as defineEventHandler, r as readBody, c as createError, f as admin, a as getFirestore, u as useRuntimeConfig } from '../../../nitro/nitro.mjs';
 import { s as setUserSession } from '../../../_/auth.mjs';
-import admin from 'firebase-admin';
 import 'node:http';
 import 'node:https';
 import 'node:events';
@@ -8,6 +7,24 @@ import 'node:buffer';
 import 'node:fs';
 import 'node:path';
 import 'node:crypto';
+import 'fs';
+import 'url';
+import 'os';
+import 'path';
+import 'http';
+import 'https';
+import 'http2';
+import 'events';
+import '@fastify/busboy';
+import 'zlib';
+import 'jsonwebtoken';
+import 'node-forge';
+import 'crypto';
+import 'jwks-rsa';
+import '@firebase/database-compat/standalone';
+import '@google-cloud/firestore';
+import 'farmhash-modern';
+import '@google-cloud/firestore/build/src/path';
 
 let initialized = false;
 function ensureAdmin() {

@@ -7,7 +7,24 @@ import 'node:buffer';
 import 'node:fs';
 import 'node:path';
 import 'node:crypto';
-import 'firebase-admin';
+import 'fs';
+import 'url';
+import 'os';
+import 'path';
+import 'http';
+import 'https';
+import 'http2';
+import 'events';
+import '@fastify/busboy';
+import 'zlib';
+import 'jsonwebtoken';
+import 'node-forge';
+import 'crypto';
+import 'jwks-rsa';
+import '@firebase/database-compat/standalone';
+import '@google-cloud/firestore';
+import 'farmhash-modern';
+import '@google-cloud/firestore/build/src/path';
 
 function normalizeDateForLocalDay(date, tzOffsetMinutes) {
   const local = new Date(date.getTime() - (tzOffsetMinutes != null ? tzOffsetMinutes : 0) * 6e4);

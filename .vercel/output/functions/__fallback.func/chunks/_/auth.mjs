@@ -1,4 +1,4 @@
-import { j as getCookie, a as getFirestore, k as setCookie, l as deleteCookie } from '../nitro/nitro.mjs';
+import { k as getCookie, a as getFirestore, l as setCookie, m as deleteCookie } from '../nitro/nitro.mjs';
 
 async function getCurrentUser(event) {
   const cookieVal = getCookie(event, "uid");

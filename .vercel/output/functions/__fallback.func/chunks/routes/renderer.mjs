@@ -1,9 +1,9 @@
-import { w as withLeadingSlash, m as joinRelativeURL, u as useRuntimeConfig, n as getResponseStatusText, o as getResponseStatus, p as defineRenderHandler, g as getQuery, c as createError, q as destr, t as getRouteRules, v as hasProtocol, x as joinURL, y as useNitroApp } from '../nitro/nitro.mjs';
+import { w as withLeadingSlash, n as getDefaultExportFromNamespaceIfNotNamed, o as joinRelativeURL, u as useRuntimeConfig, p as getResponseStatusText, q as getResponseStatus, t as defineRenderHandler, g as getQuery, c as createError, v as destr, x as getRouteRules, y as hasProtocol, z as joinURL, A as useNitroApp } from '../nitro/nitro.mjs';
 import { createHead as createHead$1, propsToString, renderSSRHead } from 'unhead/server';
 import { stringify, uneval } from 'devalue';
 import * as compilerDom from '@vue/compiler-dom';
-import { g as getDefaultExportFromNamespaceIfNotNamed, s as shared_cjs_prod } from '../_/shared.cjs.prod.mjs';
 import * as runtimeDom from '@vue/runtime-dom';
+import { s as shared_cjs_prod } from '../_/shared.cjs.prod.mjs';
 import 'node:http';
 import 'node:https';
 import 'node:events';
@@ -11,7 +11,24 @@ import 'node:buffer';
 import 'node:fs';
 import 'node:path';
 import 'node:crypto';
-import 'firebase-admin';
+import 'fs';
+import 'url';
+import 'os';
+import 'path';
+import 'http';
+import 'https';
+import 'http2';
+import 'events';
+import '@fastify/busboy';
+import 'zlib';
+import 'jsonwebtoken';
+import 'node-forge';
+import 'crypto';
+import 'jwks-rsa';
+import '@firebase/database-compat/standalone';
+import '@google-cloud/firestore';
+import 'farmhash-modern';
+import '@google-cloud/firestore/build/src/path';
 
 function createRendererContext({ manifest, buildAssetsURL }) {
   const ctx = {
