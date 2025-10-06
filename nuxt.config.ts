@@ -4,7 +4,8 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   nitro: {
-    preset: 'vercel_static'
+    // Use Vercel serverless so /api routes deploy
+    preset: 'vercel'
   },
   vite: {
     ssr: {

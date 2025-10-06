@@ -473,7 +473,12 @@ async function loadMe() {
 }
 
 onMounted(async () => {
-  await Promise.all([loadBanner(), loadTitle(), loadMe()])
+  try {
+    await Promise.all([loadBanner(), loadTitle(), loadMe()])
+  } catch (err) {
+    // Don’t crash the app if backend endpoints are unavailable
+    console.warn('Initial data load failed:', err)
+  }
   try { await loadPages() } catch {}
   window.addEventListener('click', onClickOutside)
 })

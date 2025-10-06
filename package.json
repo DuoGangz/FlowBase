@@ -9,7 +9,8 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "start": "node .output/server/index.mjs",
-    "vercel-build": "nuxt generate"
+    // Vercel uses this if present; build (not generate) to include API routes
+    "vercel-build": "nuxt build"
   },
   "dependencies": {
     "@pinia/nuxt": "^0.11.2",
