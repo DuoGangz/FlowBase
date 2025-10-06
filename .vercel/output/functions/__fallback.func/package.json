@@ -5,7 +5,7 @@
   "private": true,
   "dependencies": {
     "@babel/parser": "7.28.4",
-    "@fastify/busboy": "3.2.0",
+    "@fastify/busboy": "2.1.1",
     "@firebase/component": "0.6.9",
     "@firebase/database-compat": "1.0.8",
     "@firebase/logger": "0.4.2",
@@ -119,7 +119,7 @@
     "undici": "5.29.0",
     "unhead": "2.0.17",
     "util-deprecate": "1.0.2",
-    "uuid": "8.3.2",
+    "uuid": "9.0.1",
     "webidl-conversions": "3.0.1",
     "whatwg-url": "5.0.0",
     "wrappy": "1.0.2",

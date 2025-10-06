@@ -1,4 +1,4 @@
-import { d as defineEventHandler, c as createError, b as getMethod, r as readBody, a as getFirestore, g as getQuery } from '../../../nitro/nitro.mjs';
+import { d as defineEventHandler, c as createError, b as getMethod, r as readBody, a as getFirestore, g as getQuery } from '../../../_/nitro.mjs';
 import { g as getCurrentUser } from '../../../_/auth.mjs';
 import 'node:http';
 import 'node:https';
@@ -15,7 +15,8 @@ import 'http';
 import 'https';
 import 'http2';
 import 'events';
-import '@fastify/busboy';
+import 'node:stream';
+import 'node:util';
 import 'zlib';
 import 'jsonwebtoken';
 import 'node-forge';

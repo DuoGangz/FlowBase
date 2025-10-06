@@ -1,5 +1,5 @@
 import { e as escapeHtml_1 } from './shared.cjs.prod.mjs';
-import '../nitro/nitro.mjs';
+import './nitro.mjs';
 import 'node:http';
 import 'node:https';
 import 'node:events';
@@ -15,7 +15,8 @@ import 'http';
 import 'https';
 import 'http2';
 import 'events';
-import '@fastify/busboy';
+import 'node:stream';
+import 'node:util';
 import 'zlib';
 import 'jsonwebtoken';
 import 'node-forge';

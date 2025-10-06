@@ -1,4 +1,4 @@
-import { d as defineEventHandler } from '../../../nitro/nitro.mjs';
+import { d as defineEventHandler } from '../../../_/nitro.mjs';
 import 'node:http';
 import 'node:https';
 import 'node:events';
@@ -14,7 +14,8 @@ import 'http';
 import 'https';
 import 'http2';
 import 'events';
-import '@fastify/busboy';
+import 'node:stream';
+import 'node:util';
 import 'zlib';
 import 'jsonwebtoken';
 import 'node-forge';

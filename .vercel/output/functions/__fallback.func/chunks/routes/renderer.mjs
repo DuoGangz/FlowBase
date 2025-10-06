@@ -1,4 +1,4 @@
-import { w as withLeadingSlash, n as getDefaultExportFromNamespaceIfNotNamed, o as joinRelativeURL, u as useRuntimeConfig, p as getResponseStatusText, q as getResponseStatus, t as defineRenderHandler, g as getQuery, c as createError, v as destr, x as getRouteRules, y as hasProtocol, z as joinURL, A as useNitroApp } from '../nitro/nitro.mjs';
+import { w as withLeadingSlash, o as getDefaultExportFromNamespaceIfNotNamed, q as joinRelativeURL, h as useRuntimeConfig, v as getResponseStatusText, x as getResponseStatus, y as defineRenderHandler, g as getQuery, c as createError, z as destr, A as getRouteRules, B as hasProtocol, C as joinURL, u as useNitroApp } from '../_/nitro.mjs';
 import { createHead as createHead$1, propsToString, renderSSRHead } from 'unhead/server';
 import { stringify, uneval } from 'devalue';
 import * as compilerDom from '@vue/compiler-dom';
@@ -19,7 +19,8 @@ import 'http';
 import 'https';
 import 'http2';
 import 'events';
-import '@fastify/busboy';
+import 'node:stream';
+import 'node:util';
 import 'zlib';
 import 'jsonwebtoken';
 import 'node-forge';
@@ -30,16 +31,20 @@ import '@google-cloud/firestore';
 import 'farmhash-modern';
 import '@google-cloud/firestore/build/src/path';
 
-function createRendererContext({ manifest, buildAssetsURL }) {
+function createRendererContext({ manifest, precomputed, buildAssetsURL }) {
+  if (!manifest && !precomputed) {
+    throw new Error("Either manifest or precomputed data must be provided");
+  }
   const ctx = {
-    // Manifest
+    // Options
     buildAssetsURL: buildAssetsURL || withLeadingSlash,
-    manifest: void 0,
+    manifest,
+    precomputed,
     updateManifest,
     // Internal cache
-    _dependencies: void 0,
-    _dependencySets: void 0,
-    _entrypoints: void 0
+    _dependencies: {},
+    _dependencySets: {},
+    _entrypoints: []
   };
   function updateManifest(manifest2) {
     const manifestEntries = Object.entries(manifest2);
@@ -48,7 +53,12 @@ function createRendererContext({ manifest, buildAssetsURL }) {
     ctx._dependencySets = {};
     ctx._entrypoints = manifestEntries.filter((e) => e[1].isEntry).map(([module]) => module);
   }
-  updateManifest(manifest);
+  if (precomputed) {
+    ctx._dependencies = precomputed.dependencies;
+    ctx._entrypoints = precomputed.entrypoints;
+  } else if (manifest) {
+    updateManifest(manifest);
+  }
   return ctx;
 }
 function getModuleDependencies(id, rendererContext) {
@@ -61,6 +71,9 @@ function getModuleDependencies(id, rendererContext) {
     preload: {},
     prefetch: {}
   };
+  if (!rendererContext.manifest) {
+    return dependencies;
+  }
   const meta = rendererContext.manifest[id];
   if (!meta) {
     return dependencies;
@@ -79,9 +92,15 @@ function getModuleDependencies(id, rendererContext) {
   }
   for (const depId of meta.imports || []) {
     const depDeps = getModuleDependencies(depId, rendererContext);
-    Object.assign(dependencies.styles, depDeps.styles);
-    Object.assign(dependencies.preload, depDeps.preload);
-    Object.assign(dependencies.prefetch, depDeps.prefetch);
+    for (const key in depDeps.styles) {
+      dependencies.styles[key] = depDeps.styles[key];
+    }
+    for (const key in depDeps.preload) {
+      dependencies.preload[key] = depDeps.preload[key];
+    }
+    for (const key in depDeps.prefetch) {
+      dependencies.prefetch[key] = depDeps.prefetch[key];
+    }
   }
   const filteredPreload = {};
   for (const id2 in dependencies.preload) {
@@ -94,7 +113,12 @@ function getModuleDependencies(id, rendererContext) {
   return dependencies;
 }
 function getAllDependencies(ids, rendererContext) {
-  const cacheKey = Array.from(ids).sort().join(",");
+  let cacheKey = "";
+  const sortedIds = [...ids].sort();
+  for (let i = 0; i < sortedIds.length; i++) {
+    if (i > 0) cacheKey += ",";
+    cacheKey += sortedIds[i];
+  }
   if (rendererContext._dependencySets[cacheKey]) {
     return rendererContext._dependencySets[cacheKey];
   }
@@ -106,15 +130,29 @@ function getAllDependencies(ids, rendererContext) {
   };
   for (const id of ids) {
     const deps = getModuleDependencies(id, rendererContext);
-    Object.assign(allDeps.scripts, deps.scripts);
-    Object.assign(allDeps.styles, deps.styles);
-    Object.assign(allDeps.preload, deps.preload);
-    Object.assign(allDeps.prefetch, deps.prefetch);
-    for (const dynamicDepId of rendererContext.manifest[id]?.dynamicImports || []) {
+    for (const key in deps.scripts) {
+      allDeps.scripts[key] = deps.scripts[key];
+    }
+    for (const key in deps.styles) {
+      allDeps.styles[key] = deps.styles[key];
+    }
+    for (const key in deps.preload) {
+      allDeps.preload[key] = deps.preload[key];
+    }
+    for (const key in deps.prefetch) {
+      allDeps.prefetch[key] = deps.prefetch[key];
+    }
+    for (const dynamicDepId of rendererContext.manifest?.[id]?.dynamicImports || []) {
       const dynamicDeps = getModuleDependencies(dynamicDepId, rendererContext);
-      Object.assign(allDeps.prefetch, dynamicDeps.scripts);
-      Object.assign(allDeps.prefetch, dynamicDeps.styles);
-      Object.assign(allDeps.prefetch, dynamicDeps.preload);
+      for (const key in dynamicDeps.scripts) {
+        allDeps.prefetch[key] = dynamicDeps.scripts[key];
+      }
+      for (const key in dynamicDeps.styles) {
+        allDeps.prefetch[key] = dynamicDeps.styles[key];
+      }
+      for (const key in dynamicDeps.preload) {
+        allDeps.prefetch[key] = dynamicDeps.preload[key];
+      }
     }
   }
   const filteredPrefetch = {};
@@ -149,49 +187,123 @@ function getRequestDependencies(ssrContext, rendererContext) {
 }
 function renderStyles(ssrContext, rendererContext) {
   const { styles } = getRequestDependencies(ssrContext, rendererContext);
-  return Object.values(styles).map(
-    (resource) => renderLinkToString({ rel: "stylesheet", href: rendererContext.buildAssetsURL(resource.file), crossorigin: "" })
-  ).join("");
-}
-function getResources(ssrContext, rendererContext) {
-  return [...getPreloadLinks(ssrContext, rendererContext), ...getPrefetchLinks(ssrContext, rendererContext)];
+  let result = "";
+  for (const key in styles) {
+    const resource = styles[key];
+    result += `<link rel="stylesheet" href="${rendererContext.buildAssetsURL(resource.file)}" crossorigin>`;
+  }
+  return result;
 }
 function renderResourceHints(ssrContext, rendererContext) {
-  return getResources(ssrContext, rendererContext).map(renderLinkToString).join("");
+  const { preload, prefetch } = getRequestDependencies(ssrContext, rendererContext);
+  let result = "";
+  for (const key in preload) {
+    const resource = preload[key];
+    const href = rendererContext.buildAssetsURL(resource.file);
+    const rel = resource.module ? "modulepreload" : "preload";
+    const crossorigin = resource.resourceType === "style" || resource.resourceType === "font" || resource.resourceType === "script" || resource.module ? " crossorigin" : "";
+    if (resource.resourceType && resource.mimeType) {
+      result += `<link rel="${rel}" as="${resource.resourceType}" type="${resource.mimeType}"${crossorigin} href="${href}">`;
+    } else if (resource.resourceType) {
+      result += `<link rel="${rel}" as="${resource.resourceType}"${crossorigin} href="${href}">`;
+    } else {
+      result += `<link rel="${rel}"${crossorigin} href="${href}">`;
+    }
+  }
+  for (const key in prefetch) {
+    const resource = prefetch[key];
+    const href = rendererContext.buildAssetsURL(resource.file);
+    const crossorigin = resource.resourceType === "style" || resource.resourceType === "font" || resource.resourceType === "script" || resource.module ? " crossorigin" : "";
+    if (resource.resourceType && resource.mimeType) {
+      result += `<link rel="prefetch" as="${resource.resourceType}" type="${resource.mimeType}"${crossorigin} href="${href}">`;
+    } else if (resource.resourceType) {
+      result += `<link rel="prefetch" as="${resource.resourceType}"${crossorigin} href="${href}">`;
+    } else {
+      result += `<link rel="prefetch"${crossorigin} href="${href}">`;
+    }
+  }
+  return result;
 }
 function renderResourceHeaders(ssrContext, rendererContext) {
+  const { preload, prefetch } = getRequestDependencies(ssrContext, rendererContext);
+  const links = [];
+  for (const key in preload) {
+    const resource = preload[key];
+    const href = rendererContext.buildAssetsURL(resource.file);
+    const rel = resource.module ? "modulepreload" : "preload";
+    let header = `<${href}>; rel="${rel}"`;
+    if (resource.resourceType) {
+      header += `; as="${resource.resourceType}"`;
+    }
+    if (resource.mimeType) {
+      header += `; type="${resource.mimeType}"`;
+    }
+    if (resource.resourceType === "style" || resource.resourceType === "font" || resource.resourceType === "script" || resource.module) {
+      header += "; crossorigin";
+    }
+    links.push(header);
+  }
+  for (const key in prefetch) {
+    const resource = prefetch[key];
+    const href = rendererContext.buildAssetsURL(resource.file);
+    let header = `<${href}>; rel="prefetch"`;
+    if (resource.resourceType) {
+      header += `; as="${resource.resourceType}"`;
+    }
+    if (resource.mimeType) {
+      header += `; type="${resource.mimeType}"`;
+    }
+    if (resource.resourceType === "style" || resource.resourceType === "font" || resource.resourceType === "script" || resource.module) {
+      header += "; crossorigin";
+    }
+    links.push(header);
+  }
   return {
-    link: getResources(ssrContext, rendererContext).map(renderLinkToHeader).join(", ")
+    link: links.join(", ")
   };
 }
 function getPreloadLinks(ssrContext, rendererContext) {
   const { preload } = getRequestDependencies(ssrContext, rendererContext);
-  return Object.values(preload).map((resource) => ({
-    rel: resource.module ? "modulepreload" : "preload",
-    as: resource.resourceType,
-    type: resource.mimeType ?? null,
-    crossorigin: resource.resourceType === "style" || resource.resourceType === "font" || resource.resourceType === "script" || resource.module ? "" : null,
-    href: rendererContext.buildAssetsURL(resource.file)
-  }));
+  const result = [];
+  for (const key in preload) {
+    const resource = preload[key];
+    result.push({
+      rel: resource.module ? "modulepreload" : "preload",
+      as: resource.resourceType,
+      type: resource.mimeType ?? null,
+      crossorigin: resource.resourceType === "style" || resource.resourceType === "font" || resource.resourceType === "script" || resource.module ? "" : null,
+      href: rendererContext.buildAssetsURL(resource.file)
+    });
+  }
+  return result;
 }
 function getPrefetchLinks(ssrContext, rendererContext) {
   const { prefetch } = getRequestDependencies(ssrContext, rendererContext);
-  return Object.values(prefetch).map((resource) => ({
-    rel: "prefetch",
-    as: resource.resourceType,
-    type: resource.mimeType ?? null,
-    crossorigin: resource.resourceType === "style" || resource.resourceType === "font" || resource.resourceType === "script" || resource.module ? "" : null,
-    href: rendererContext.buildAssetsURL(resource.file)
-  }));
+  const result = [];
+  for (const key in prefetch) {
+    const resource = prefetch[key];
+    result.push({
+      rel: "prefetch",
+      as: resource.resourceType,
+      type: resource.mimeType ?? null,
+      crossorigin: resource.resourceType === "style" || resource.resourceType === "font" || resource.resourceType === "script" || resource.module ? "" : null,
+      href: rendererContext.buildAssetsURL(resource.file)
+    });
+  }
+  return result;
 }
 function renderScripts(ssrContext, rendererContext) {
   const { scripts } = getRequestDependencies(ssrContext, rendererContext);
-  return Object.values(scripts).map((resource) => renderScriptToString({
-    type: resource.module ? "module" : null,
-    src: rendererContext.buildAssetsURL(resource.file),
-    defer: resource.module ? null : "",
-    crossorigin: ""
-  })).join("");
+  let result = "";
+  for (const key in scripts) {
+    const resource = scripts[key];
+    if (resource.module) {
+      result += `<script type="module" src="${rendererContext.buildAssetsURL(resource.file)}" crossorigin><\/script>`;
+    } else {
+      result += `<script src="${rendererContext.buildAssetsURL(resource.file)}" defer crossorigin><\/script>`;
+    }
+  }
+  return result;
 }
 function createRenderer(createApp, renderOptions) {
   const rendererContext = createRendererContext(renderOptions);
@@ -212,15 +324,6 @@ function createRenderer(createApp, renderOptions) {
       };
     }
   };
-}
-function renderScriptToString(attrs) {
-  return `<script${Object.entries(attrs).map(([key, value]) => value === null ? "" : value ? ` ${key}="${value}"` : " " + key).join("")}><\/script>`;
-}
-function renderLinkToString(attrs) {
-  return `<link${Object.entries(attrs).map(([key, value]) => value === null ? "" : value ? ` ${key}="${value}"` : " " + key).join("")}>`;
-}
-function renderLinkToHeader(attrs) {
-  return `<${attrs.href}>${Object.entries(attrs).map(([key, value]) => key === "href" || value === null ? "" : value ? `; ${key}="${value}"` : `; ${key}`).join("")}`;
 }
 
 var vue = {exports: {}};
@@ -481,7 +584,7 @@ function setSSRError(ssrContext, error) {
 
 const renderSSRHeadOptions = {"omitLineBreaks":true};
 
-const entryFileName = "UzHC0j1q.js";
+const entryFileName = "CIZOaD51.js";
 
 const _DRIVE_LETTER_START_RE = /^[A-Za-z]:\//;
 function normalizeWindowsPath(input = "") {
