@@ -8,8 +8,21 @@ export default defineNuxtConfig({
     preset: 'vercel',
     externals: {
       // Ensure renderer libs are bundled to avoid runtime resolution issues
-      inline: ['vue-bundle-renderer', '@vue/shared']
+      inline: ['vue-bundle-renderer', '@vue/shared', 'vue']
     }
+  },
+  // Ensure Vite/Nitro don't externalize vue-bundle-renderer at runtime on Vercel
+  // This avoids ERR_MODULE_NOT_FOUND within serverless function chunks
+  vite: {
+    ssr: {
+      noExternal: ['vue-bundle-renderer', '@vue/shared', 'vue']
+    },
+    optimizeDeps: {
+      include: ['vue-bundle-renderer']
+    }
+  },
+  build: {
+    transpile: ['vue-bundle-renderer']
   },
   // Rely on Nitro's defaults for externalization/bundling.
   // Avoid forcing `noExternal` to reduce bundling surprises.
