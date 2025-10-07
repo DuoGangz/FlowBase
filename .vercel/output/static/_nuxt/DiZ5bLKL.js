@@ -1,1 +1,0 @@
-import{K as r,L as n,G as a}from"#entry";const c=r(async()=>{let e,t;try{if(([e,t]=n(()=>$fetch("/api/auth/me")),e=await e,t(),e).role!=="OWNER")return a("/")}catch{return a("/login")}});export{c as default};
