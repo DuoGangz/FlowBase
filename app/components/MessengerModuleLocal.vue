@@ -12,7 +12,7 @@
       <button class="text-sm text-red-600" @click="$emit('remove')">Remove</button>
     </div>
 
-    <InstantMessenger />
+    <InstantMessenger class="flex-1 min-h-0" />
 
     <div
       class="absolute right-1 bottom-1 w-4 h-4 cursor-se-resize"
@@ -47,7 +47,8 @@ const wrapperStyle = computed(() => ({
   boxSizing: 'border-box'
 }))
 const wrapperClass = computed(() => [
-  'border rounded-2xl p-2 space-y-2 shadow bg-white dark:bg-gray-900 dark:border-gray-700 overflow-auto z-20',
+  'border rounded-2xl p-2 space-y-2 shadow bg-white dark:bg-gray-900 dark:border-gray-700 z-20',
+  'flex flex-col overflow-hidden',
   props.active ? 'ring-2 ring-blue-300' : '',
   dragState.dragging ? 'select-none cursor-grabbing z-50' : 'select-text cursor-default'
 ])
