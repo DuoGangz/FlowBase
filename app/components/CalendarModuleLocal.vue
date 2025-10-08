@@ -46,7 +46,7 @@
         :key="day.key"
         class="h-14 flex flex-col items-center justify-start rounded-md p-1 text-xs cursor-pointer"
         :class="[
-          day.inMonth ? 'bg-gray-50' : 'bg-white text-gray-400',
+          day.inMonth ? 'bg-gray-50 dark:bg-gray-800' : 'bg-white dark:bg-gray-900 text-gray-400 dark:text-gray-500',
           isSameDay(day.date, selectedDate) ? 'ring-2 ring-blue-500' : ''
         ]"
         @click="onSelectDay(day.date)"
@@ -165,7 +165,7 @@ const wrapperStyle = computed(() => ({
   boxSizing: 'border-box'
 }))
 const wrapperClass = computed(() => [
-  'border rounded-2xl p-2 space-y-2 shadow bg-white overflow-hidden z-20',
+  'border rounded-2xl p-2 space-y-2 shadow bg-white dark:bg-gray-900 dark:border-gray-700 overflow-hidden z-20',
   props.active ? 'ring-2 ring-blue-300' : '',
   dragState.dragging ? 'select-none cursor-grabbing z-50' : 'select-text cursor-default'
 ])
@@ -245,7 +245,7 @@ function setView(mode: 'month' | 'week' | 'day') {
 function viewButtonClass(mode: 'month' | 'week' | 'day') {
   return [
     'px-2 py-1 border rounded-md',
-    viewMode.value === mode ? 'bg-black text-white' : 'bg-white'
+    viewMode.value === mode ? 'bg-black text-white' : 'bg-white dark:bg-gray-800'
   ]
 }
 

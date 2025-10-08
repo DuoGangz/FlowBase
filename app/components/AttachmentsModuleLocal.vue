@@ -44,7 +44,7 @@
     <ul class="space-y-1">
       <li v-for="f in files" :key="f.id" class="flex items-center gap-2">
         <!-- Make the thumbnail itself the clickable area (only within the square) -->
-        <a :href="f.path" target="_blank" class="w-6 h-6 flex items-center justify-center rounded border overflow-hidden bg-gray-50 shrink-0" :title="fileName(f.path)">
+        <a :href="f.path" target="_blank" class="w-6 h-6 flex items-center justify-center rounded border overflow-hidden bg-gray-50 dark:bg-gray-800 dark:border-gray-700 shrink-0" :title="fileName(f.path)">
           <img v-if="isImage(f)" :src="f.path" alt="preview" class="w-full h-full object-cover" />
           <div v-else class="w-full h-full flex items-center justify-center select-none" :class="iconClass(f)">
             <span class="text-[8px] font-semibold uppercase">{{ fileExt(f.path) }}</span>
@@ -114,7 +114,7 @@ const wrapperStyle = computed(() => ({
   boxSizing: 'border-box'
 }))
 const wrapperClass = computed(() => [
-  'border rounded-2xl p-2 space-y-2 shadow bg-white overflow-hidden z-20',
+  'border rounded-2xl p-2 space-y-2 shadow bg-white dark:bg-gray-900 dark:border-gray-700 overflow-hidden z-20',
   props.active ? 'ring-2 ring-blue-300' : '',
   dragState.dragging ? 'select-none cursor-grabbing z-50' : 'select-text cursor-default'
 ])

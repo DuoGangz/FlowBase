@@ -149,7 +149,7 @@ const wrapperStyle = computed(() => ({
   boxSizing: 'border-box'
 }))
 const wrapperClass = computed(() => [
-  'border rounded-2xl p-2 space-y-2 shadow bg-white overflow-hidden z-20',
+  'border rounded-2xl p-2 space-y-2 shadow bg-white dark:bg-gray-900 dark:border-gray-700 overflow-hidden z-20',
   props.active ? 'ring-2 ring-blue-300' : '',
   dragState.dragging ? 'select-none cursor-grabbing z-50' : 'select-text cursor-default'
 ])

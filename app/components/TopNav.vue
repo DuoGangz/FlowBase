@@ -1,5 +1,5 @@
 ﻿<template>
-  <div class="border-b bg-white">
+  <div class="border-b bg-white dark:bg-gray-900 dark:border-gray-700">
     <div class="w-full px-2 h-12 grid grid-cols-[1fr_auto_1fr] items-center">
       <div />
       <div class="flex items-center gap-4 justify-center">
@@ -18,12 +18,12 @@
         <NuxtLink v-if="me && (me.role === 'OWNER' || me.role === 'MANAGER' || me.role === 'ADMIN')" to="/users" class="text-sm underline">Users</NuxtLink>
       </div>
       <div class="flex items-center gap-3 justify-end pr-4">
-        <div v-if="me" class="text-sm text-gray-700">{{ me.name }} ({{ me.role }})</div>
+        <div v-if="me" class="text-sm text-gray-700 dark:text-gray-200">{{ me.name }} ({{ me.role }})</div>
 
         <!-- Settings Menu -->
         <div v-if="me" ref="settingsRef" class="relative">
           <button
-            class="px-2 py-1 border rounded text-sm inline-flex items-center gap-1 hover:bg-gray-50"
+            class="px-2 py-1 border rounded text-sm inline-flex items-center gap-1 hover:bg-gray-50 dark:hover:bg-gray-800"
             aria-haspopup="menu"
             :aria-expanded="settingsOpen ? 'true' : 'false'"
             @click.stop="toggleSettings"
@@ -36,15 +36,19 @@
 
           <div
             v-if="settingsOpen"
-            class="absolute right-0 mt-2 w-56 rounded-md border bg-white shadow-lg z-20"
+            class="absolute right-0 mt-2 w-64 rounded-md border bg-white dark:bg-gray-800 dark:border-gray-700 shadow-lg z-20"
             role="menu"
             aria-label="Settings Menu"
           >
-            <div class="px-3 py-2 border-b">
+            <div class="px-3 py-2 border-b dark:border-gray-700">
               <div class="text-sm font-medium">Settings</div>
-              <div class="text-xs text-gray-500">Coming soon</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">Configure your preferences</div>
             </div>
             <div class="py-1">
+              <label class="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer select-none">
+                <input type="checkbox" class="h-4 w-4" v-model="isDark"/>
+                <span>Dark theme</span>
+              </label>
               <button disabled class="w-full text-left px-3 py-2 text-sm text-gray-400 cursor-not-allowed">Preferences</button>
               <button disabled class="w-full text-left px-3 py-2 text-sm text-gray-400 cursor-not-allowed">Notifications</button>
               <button disabled class="w-full text-left px-3 py-2 text-sm text-gray-400 cursor-not-allowed">Theme</button>
@@ -52,7 +56,7 @@
           </div>
         </div>
 
-        <button v-if="me" class="px-2 py-1 border rounded text-sm" @click="logout">Logout</button>
+        <button v-if="me" class="px-2 py-1 border rounded text-sm hover:bg-gray-50 dark:hover:bg-gray-800" @click="logout">Logout</button>
       </div>
     </div>
   </div>
@@ -60,6 +64,7 @@
 </template>
 
 <script setup lang="ts">
+import { useThemeStore } from '~~/stores/theme'
 type Me = { id:number; name:string; email:string; role:'OWNER'|'ADMIN'|'MANAGER'|'USER' } | null
 const me = ref<Me>(null)
 const logoSrc = '/logo-flowbase.png'
@@ -67,6 +72,11 @@ const logoError = ref(false)
 function onLogoError() { logoError.value = true }
 const route = useRoute()
 const isHome = computed(() => route.path === '/')
+const themeStore = useThemeStore()
+const isDark = computed({
+  get: () => themeStore.theme === 'dark',
+  set: (v: boolean) => themeStore.setTheme(v ? 'dark' : 'light')
+})
 
 async function load() {
   try {

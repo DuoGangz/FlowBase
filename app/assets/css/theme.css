@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Inputs, selects, textareas */
+  input[type='text'],
+  input[type='email'],
+  input[type='number'],
+  input[type='search'],
+  input[type='password'],
+  input[type='date'],
+  input[type='time'],
+  input[type='datetime-local'],
+  input:not([type]),
+  select,
+  textarea {
+    @apply bg-white text-gray-900 placeholder-gray-400 border border-gray-300 rounded-md;
+  }
+
+  .dark input[type='text'],
+  .dark input[type='email'],
+  .dark input[type='number'],
+  .dark input[type='search'],
+  .dark input[type='password'],
+  .dark input[type='date'],
+  .dark input[type='time'],
+  .dark input[type='datetime-local'],
+  .dark input:not([type]),
+  .dark select,
+  .dark textarea {
+    @apply bg-gray-800 text-gray-100 placeholder-gray-400 border-gray-600;
+  }
+
+  /* Border-only buttons should have visible contrast in dark */
+  button.border { @apply border-gray-300; }
+  .dark button.border { @apply border-gray-600 text-gray-100; }
+}
+

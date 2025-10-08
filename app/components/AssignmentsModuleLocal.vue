@@ -100,7 +100,7 @@
 
     <!-- Bottom-left toggle pinned to module wrapper -->
     <div v-if="canAssign" class="absolute left-2 bottom-2">
-      <div class="inline-flex border rounded-full overflow-hidden shadow bg-white pointer-events-auto">
+      <div class="inline-flex border rounded-full overflow-hidden shadow bg-white dark:bg-gray-800 dark:border-gray-700 pointer-events-auto">
         <button class="px-3 h-8 text-sm" :class="viewMode==='me' ? 'bg-black text-white' : 'bg-white'" @click="viewMode='me'">Assigned to me</button>
         <button class="px-3 h-8 text-sm" :class="viewMode==='authored' ? 'bg-black text-white' : 'bg-white'" @click="viewMode='authored'">Assignments</button>
       </div>
@@ -149,7 +149,7 @@ const wrapperStyle = computed(() => ({
   boxSizing: 'border-box'
 }))
 const wrapperClass = computed(() => [
-  'border rounded-2xl p-2 shadow bg-white overflow-x-hidden overflow-y-auto relative z-20',
+  'border rounded-2xl p-2 shadow bg-white dark:bg-gray-900 dark:border-gray-700 overflow-x-hidden overflow-y-auto relative z-20',
   props.active ? 'ring-2 ring-blue-300' : '',
   dragState.dragging ? 'select-none cursor-grabbing z-50' : 'select-text cursor-default'
 ])

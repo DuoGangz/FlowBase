@@ -110,7 +110,7 @@
     <div class="fixed bottom-4 right-4 z-50 flex items-center gap-3">
       <!-- Size preset (bottom-left). Hidden until hydrated to avoid SSR mismatch -->
       <div v-if="hydrated" class="fixed bottom-4 left-4">
-        <div class="inline-flex border rounded-full overflow-hidden shadow bg-white">
+        <div class="inline-flex border rounded-full overflow-hidden shadow bg-white dark:bg-gray-800 dark:border-gray-700">
           <button class="px-3 py-1 text-sm" :class="sizePreset==='small' ? 'bg-black text-white' : 'text-gray-700'" @click="setPreset('small')">S</button>
           <button class="px-3 py-1 text-sm" :class="sizePreset==='medium' ? 'bg-black text-white' : 'text-gray-700'" @click="setPreset('medium')">M</button>
           <button class="px-3 py-1 text-sm" :class="sizePreset==='large' ? 'bg-black text-white' : 'text-gray-700'" @click="setPreset('large')">L</button>
@@ -118,7 +118,7 @@
       </div>
 
       <!-- Snap/Free Form toggle (bottom-right) -->
-      <div class="inline-flex border rounded-full overflow-hidden shadow bg-white">
+      <div class="inline-flex border rounded-full overflow-hidden shadow bg-white dark:bg-gray-800 dark:border-gray-700">
         <button
           class="px-3 py-1 text-sm"
           :class="snapMode ? 'text-gray-600' : 'bg-black text-white'"

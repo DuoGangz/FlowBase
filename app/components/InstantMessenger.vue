@@ -5,19 +5,19 @@
         <label class="text-[10px] uppercase tracking-wide text-gray-500">To</label>
         <div class="relative">
           <input v-model="peerQuery" @mousedown.stop @focus="openUserList" @input="onPeerQuery" placeholder="Type a name" class="border rounded px-3 py-2 w-full" />
-          <ul v-if="showUserList && filteredUsers.length" class="absolute z-10 bg-white border rounded mt-1 w-full max-h-56 overflow-auto">
-            <li v-for="u in filteredUsers" :key="u.id" class="px-3 py-2 hover:bg-gray-100 cursor-pointer" @click="selectPeer(u)">{{ u.name }}</li>
+          <ul v-if="showUserList && filteredUsers.length" class="absolute z-10 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded mt-1 w-full max-h-56 overflow-auto">
+            <li v-for="u in filteredUsers" :key="u.id" class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" @click="selectPeer(u)">{{ u.name }}</li>
           </ul>
         </div>
       </div>
       <button class="border rounded px-3 py-2" @click="togglePolling">{{ polling ? 'Pause' : 'Live' }}</button>
     </div>
 
-    <div ref="listRef" class="border rounded h-72 overflow-auto p-3 bg-white" @scroll="onListScroll">
+    <div ref="listRef" class="border rounded h-72 overflow-auto p-3 bg-white dark:bg-gray-900 dark:border-gray-700" @scroll="onListScroll">
       <div v-if="!peerId" class="text-gray-500 text-sm">Select a user to start chatting.</div>
       <div v-else class="space-y-2">
         <div v-for="m in messages" :key="m.id" class="flex" :class="m.fromUserId===String(me?.id) ? 'justify-end' : 'justify-start'">
-          <div class="max-w-[80%] rounded px-3 py-2" :class="m.fromUserId===String(me?.id) ? 'bg-black text-white' : 'bg-gray-100'">
+          <div class="max-w-[80%] rounded px-3 py-2" :class="m.fromUserId===String(me?.id) ? 'bg-black text-white' : 'bg-gray-100 dark:bg-gray-800 dark:text-gray-100'">
             <div class="text-xs opacity-70 mb-1">{{ time(m.createdAt) }}</div>
             <div class="whitespace-pre-wrap break-words" v-html="renderMessage(m.content)"></div>
           </div>
@@ -29,8 +29,8 @@
       <div v-if="error" class="text-sm text-red-600">{{ error }}</div>
       <div class="relative">
         <textarea ref="inputRef" v-model="draft" @mousedown.stop @keydown.enter.exact.prevent="send" @input="onInput" placeholder="Type a message. Use @name to mention." class="border rounded px-3 py-2 w-full h-20"></textarea>
-        <ul v-if="mention.active && mention.results.length" class="absolute z-10 bg-white border rounded mt-1 w-64 max-h-56 overflow-auto">
-          <li v-for="u in mention.results" :key="u.id" class="px-3 py-2 hover:bg-gray-100 cursor-pointer" @click="applyMention(u)">@{{ u.name }}</li>
+        <ul v-if="mention.active && mention.results.length" class="absolute z-10 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded mt-1 w-64 max-h-56 overflow-auto">
+          <li v-for="u in mention.results" :key="u.id" class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" @click="applyMention(u)">@{{ u.name }}</li>
         </ul>
       </div>
       <div class="flex justify-between items-center">

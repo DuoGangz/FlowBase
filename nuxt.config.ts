@@ -37,7 +37,7 @@ export default defineNuxtConfig({
     '@nuxtjs/tailwindcss',
     '@pinia/nuxt'
   ],
-  css: [],
+  css: ['~/assets/css/theme.css'],
   runtimeConfig: {
     fbProjectId: process.env.FB_PROJECT_ID,
     fbClientEmail: process.env.FB_CLIENT_EMAIL,
