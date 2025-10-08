@@ -4,12 +4,14 @@
       <div v-if="!peerId" class="text-gray-500 text-sm">Select a user to start chatting.</div>
       <div v-else class="space-y-2">
         <div v-for="m in messages" :key="m.id" class="flex" :class="isMe(m) ? 'justify-end' : 'justify-start'">
-          <div class="relative max-w-[75%] rounded-2xl px-3 py-2 shadow-sm"
-               :class="isMe(m) ? 'bg-[#0b93f6] text-white' : 'bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100'">
-            <div class="text-[10px] mb-1" :class="isMe(m) ? 'text-white/70' : 'text-gray-500 dark:text-gray-300/70'">{{ time(m.createdAt) }}</div>
-            <div class="whitespace-pre-wrap break-words text-sm leading-snug" v-html="renderMessage(m.content)"></div>
-            <span v-if="isMe(m)" class="absolute -right-1.5 bottom-1 w-3 h-3 bg-[#0b93f6] rotate-45"></span>
-            <span v-else class="absolute -left-1.5 bottom-1 w-3 h-3 bg-gray-200 dark:bg-gray-700 rotate-45"></span>
+          <div class="max-w-[75%] flex flex-col" :class="isMe(m) ? 'items-end' : 'items-start'">
+            <div class="relative w-fit rounded-2xl px-3 py-2 shadow-sm"
+                 :class="isMe(m) ? 'bg-[#0b93f6] text-white' : 'bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100'">
+              <div class="whitespace-pre-wrap break-words text-sm leading-snug" v-html="renderMessage(m.content)"></div>
+              <span v-if="isMe(m)" class="absolute -right-1.5 bottom-1 w-3 h-3 bg-[#0b93f6] rotate-45"></span>
+              <span v-else class="absolute -left-1.5 bottom-1 w-3 h-3 bg-gray-200 dark:bg-gray-700 rotate-45"></span>
+            </div>
+            <div class="mt-1 text-[11px] leading-none text-gray-400 dark:text-gray-400/80" :class="isMe(m) ? 'text-right pr-2' : 'text-left pl-2'">{{ time(m.createdAt) }}</div>
           </div>
         </div>
       </div>
@@ -18,7 +20,16 @@
     <div class="space-y-2">
       <div v-if="error" class="text-sm text-red-600">{{ error }}</div>
       <div class="relative">
-        <textarea ref="inputRef" v-model="draft" @mousedown.stop @keydown.enter.exact.prevent="onEnter" @input="onInput" placeholder="Type a message. Type @name to choose a person." class="border rounded px-3 py-2 w-full h-20"></textarea>
+        <textarea
+          ref="inputRef"
+          v-model="draft"
+          rows="1"
+          @mousedown.stop
+          @keydown.enter.exact.prevent="onEnter"
+          @input="onInput"
+          placeholder="Type a message. Type @name to choose a person."
+          class="border rounded px-3 py-2 w-full resize-none overflow-hidden leading-normal min-h-[2.5rem] max-h-40"
+        ></textarea>
         <ul v-if="mention.active && mention.results.length" class="absolute z-50 bottom-full left-0 mb-1 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded shadow-md w-64 max-w-full max-h-56 overflow-auto">
           <li v-for="u in mention.results" :key="u.id" class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" @click="applyMention(u)">@{{ u.name }}</li>
         </ul>
@@ -61,6 +72,15 @@ function isMe(m: any) {
   return String(m?.fromUserId) === String(me.value?.id)
 }
 
+function autoResize() {
+  const el = inputRef.value
+  if (!el) return
+  el.style.height = 'auto'
+  const max = 160 // ~max-h-40
+  const next = Math.min(el.scrollHeight, max)
+  el.style.height = next + 'px'
+}
+
 function openUserList() { showUserList.value = true }
 function onPeerQuery() { showUserList.value = true }
 function selectPeer(u: User) {
@@ -72,7 +92,13 @@ function selectPeer(u: User) {
 
 function time(d: string) {
   const dt = new Date(d)
-  return dt.toLocaleString()
+  const datePart = dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  const h = dt.getHours()
+  const m = dt.getMinutes()
+  const h12 = h % 12 || 12
+  const ampm = h < 12 ? 'am' : 'pm'
+  const timePart = `${h12}:${String(m).padStart(2, '0')}${ampm}`
+  return `${datePart} - ${timePart}`
 }
 
 function renderMessage(text: string) {
@@ -135,6 +161,7 @@ async function send() {
   try {
     await $fetch(`/api/im/${peerId.value}`, { method: 'POST', body: { content: draft.value } })
     draft.value = ''
+    nextTick(() => autoResize())
     await load(true)
   } catch (e: any) {
     error.value = e?.data?.message || e?.message || 'Failed to send message'
@@ -154,6 +181,8 @@ function onInput(e: Event) {
   const el = e.target as HTMLTextAreaElement
   const val = el.value
   const caret = el.selectionStart || val.length
+  // Grow textarea as needed
+  autoResize()
   const at = val.lastIndexOf('@', caret - 1)
   if (at >= 0 && (at === 0 || /\s/.test(val[at - 1] || ''))) {
     const query = val.slice(at + 1, caret)
@@ -185,6 +214,7 @@ function applyMention(u: User) {
     peerQuery.value = u.name
     el.value = `${before}${after}`
     draft.value = el.value
+    nextTick(() => autoResize())
     load(true)
     // Restore focus and caret just after the removed mention
     nextTick(() => {
@@ -197,6 +227,7 @@ function applyMention(u: User) {
     el.value = `${before}@${u.name} ${after}`
     draft.value = el.value
     nextTick(() => {
+      autoResize()
       el.focus()
       const pos = (before + '@' + u.name + ' ').length
       el.setSelectionRange(pos, pos)
@@ -230,6 +261,7 @@ function stopPolling() {
 
 onMounted(async () => {
   await Promise.all([loadMe(), loadUsers()])
+  nextTick(() => autoResize())
   startPolling()
 })
 onBeforeUnmount(() => stopPolling())
